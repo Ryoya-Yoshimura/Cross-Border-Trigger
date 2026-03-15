@@ -18,7 +18,7 @@ export default async function HomePage() {
       })
     : null;
 
-  // つながり一覧（直近5件）
+  // つながり（未読トリガーと総数だけ取得）
   const connections = await prisma.connection.findMany({
     where: { OR: [{ userId1: userId }, { userId2: userId }] },
     include: {
@@ -29,14 +29,11 @@ export default async function HomePage() {
         orderBy: { createdAt: "desc" },
         take: 1,
       },
-      matchRecords: {
-        orderBy: { checkedAt: "desc" },
-        take: 4,
-      },
     },
     orderBy: { createdAt: "desc" },
-    take: 5,
   });
+
+  const totalConnections = connections.length;
 
   const unviewedTriggers = connections
     .filter((c) => c.triggers.length > 0)
@@ -45,16 +42,6 @@ export default async function HomePage() {
       partner: c.userId1 === userId ? c.user2 : c.user1,
       trigger: c.triggers[0],
     }));
-
-  const connSummaries = connections.map((c) => {
-    const partner = c.userId1 === userId ? c.user2 : c.user1;
-    let consecutiveMatches = 0;
-    for (const m of c.matchRecords) {
-      if (m.matched) consecutiveMatches++;
-      else break;
-    }
-    return { id: c.id, partner, consecutiveMatches, hasTrigger: c.triggers.length > 0 };
-  });
 
   return (
     <div className="space-y-6">
@@ -103,7 +90,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* 再接続トリガー */}
+      {/* 再接続トリガー（4日一致後にのみ表示） */}
       {unviewedTriggers.length > 0 && (
         <section>
           <h2 className="font-semibold text-sm mb-2" style={{ color: "var(--muted)" }}>
@@ -136,18 +123,25 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* つながり一覧 */}
-      <section>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold text-sm" style={{ color: "var(--muted)" }}>
-            つながっている人
-          </h2>
-          <Link href="/connections" className="text-xs" style={{ color: "var(--accent)" }}>
-            すべて見る
-          </Link>
-        </div>
+      {/* 待機中メッセージ（つながりはあるがトリガー未発火） */}
+      {totalConnections > 0 && unviewedTriggers.length === 0 && (
+        <section>
+          <div
+            className="rounded-2xl p-5 text-center"
+            style={{ background: "white", border: "1.5px dashed var(--border)" }}
+          >
+            <p className="text-2xl mb-2">🌱</p>
+            <p className="font-semibold text-sm">毎日答え続けましょう</p>
+            <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
+              気が合う人が見つかったらお知らせします
+            </p>
+          </div>
+        </section>
+      )}
 
-        {connSummaries.length === 0 ? (
+      {/* つながりがゼロの場合 */}
+      {totalConnections === 0 && (
+        <section>
           <div
             className="rounded-2xl p-5 text-center"
             style={{ background: "white", border: "1.5px dashed var(--border)" }}
@@ -162,60 +156,8 @@ export default async function HomePage() {
               </span>
             </Link>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {connSummaries.map((c) => (
-              <Link key={c.id} href={`/connections/${c.id}`}>
-                <div
-                  className="rounded-2xl p-4"
-                  style={{ background: "white", border: "1.5px solid var(--border)" }}
-                >
-                  <div className="flex items-center gap-3">
-                    {/* アバター */}
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
-                      style={{ background: "var(--accent)" }}
-                    >
-                      {c.partner.name[0]}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm">{c.partner.name}</p>
-
-                      {/* 連続一致プログレスバー */}
-                      <div className="flex items-center gap-1 mt-1.5">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="h-1.5 flex-1 rounded-full"
-                            style={{
-                              background:
-                                i < c.consecutiveMatches ? "var(--primary)" : "var(--border)",
-                              transition: "background 0.3s",
-                            }}
-                          />
-                        ))}
-                        <span className="text-xs ml-1 flex-shrink-0" style={{ color: "var(--muted)" }}>
-                          {c.consecutiveMatches}/4日
-                        </span>
-                      </div>
-                    </div>
-
-                    {c.hasTrigger && (
-                      <span
-                        className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-semibold"
-                        style={{ background: "var(--primary-light)", color: "var(--primary)" }}
-                      >
-                        NEW
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }

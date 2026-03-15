@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { checkAndCreateTrigger } from "@/lib/match";
 
 function getToday() {
   return process.env.DEBUG_DATE ?? new Date().toISOString().slice(0, 10);
@@ -59,38 +60,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "今日はすでに回答済みです" }, { status: 400 });
   }
 
-  const answer = await prisma.answer.create({
-    data: { userId: session.user.id, questionId, choiceIndex },
-  });
-
-  const connections = await prisma.connection.findMany({
-    where: {
-      OR: [{ userId1: session.user.id }, { userId2: session.user.id }],
-    },
-  });
-
-  for (const conn of connections) {
-    const partnerId = conn.userId1 === session.user.id ? conn.userId2 : conn.userId1;
-    const partnerAnswer = await prisma.answer.findUnique({
-      where: { userId_questionId: { userId: partnerId, questionId } },
+  try {
+    const answer = await prisma.answer.create({
+      data: { userId: session.user.id, questionId, choiceIndex },
     });
 
-    if (partnerAnswer) {
-      const matched = partnerAnswer.choiceIndex === choiceIndex;
-      await prisma.matchRecord.upsert({
-        where: { connectionId_questionId: { connectionId: conn.id, questionId } },
-        create: { connectionId: conn.id, questionId, matched },
-        update: { matched },
+    const connections = await prisma.connection.findMany({
+      where: {
+        OR: [{ userId1: session.user.id }, { userId2: session.user.id }],
+      },
+    });
+
+    for (const conn of connections) {
+      const partnerId = conn.userId1 === session.user.id ? conn.userId2 : conn.userId1;
+      const partnerAnswer = await prisma.answer.findUnique({
+        where: { userId_questionId: { userId: partnerId, questionId } },
       });
 
-      if (matched) {
-        const { checkAndCreateTrigger } = await import("@/lib/match");
-        await checkAndCreateTrigger(conn.id);
+      if (partnerAnswer) {
+        const matched = partnerAnswer.choiceIndex === choiceIndex;
+        await prisma.matchRecord.upsert({
+          where: { connectionId_questionId: { connectionId: conn.id, questionId } },
+          create: { connectionId: conn.id, questionId, matched },
+          update: { matched },
+        });
+
+        if (matched) {
+          await checkAndCreateTrigger(conn.id);
+        }
       }
     }
-  }
 
-  return NextResponse.json({ answer });
+    return NextResponse.json({ answer });
+  } catch (e) {
+    console.error("[POST /api/questions]", e);
+    return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 });
+  }
 }
 
 type QuestionSet = {

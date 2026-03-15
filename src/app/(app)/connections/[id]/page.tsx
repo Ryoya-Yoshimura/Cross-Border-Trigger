@@ -38,6 +38,22 @@ export default async function ConnectionDetailPage({
     notFound();
   }
 
+  // トリガー未発火の場合は詳細を見せない
+  if (connection.triggers.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <p className="text-4xl">🌱</p>
+        <p className="font-semibold">まだわかりません</p>
+        <p className="text-sm" style={{ color: "var(--muted)" }}>
+          毎日の4択に答え続けると、<br />気が合う人が見つかったときにお知らせします
+        </p>
+        <Link href="/home" className="text-sm font-medium" style={{ color: "var(--accent)" }}>
+          ホームへ戻る
+        </Link>
+      </div>
+    );
+  }
+
   const partner =
     connection.userId1 === userId ? connection.user2 : connection.user1;
 
