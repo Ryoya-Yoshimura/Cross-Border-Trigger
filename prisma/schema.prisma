@@ -1,0 +1,91 @@
+// Cross-Border-Trigger Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ユーザー
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  inviteCode   String   @unique @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  connectionsAsUser1 Connection[] @relation("User1Connections")
+  connectionsAsUser2 Connection[] @relation("User2Connections")
+  answers            Answer[]
+}
+
+// ペア接続（双方向）
+model Connection {
+  id        String   @id @default(cuid())
+  userId1   String
+  userId2   String
+  createdAt DateTime @default(now())
+
+  user1 User @relation("User1Connections", fields: [userId1], references: [id])
+  user2 User @relation("User2Connections", fields: [userId2], references: [id])
+
+  matchRecords MatchRecord[]
+  triggers     Trigger[]
+
+  @@unique([userId1, userId2])
+}
+
+// 毎日の4択問題
+model Question {
+  id        String   @id @default(cuid())
+  date      String   @unique // "YYYY-MM-DD" 形式
+  choices   String   // JSON: [{label: string, imageUrl: string}]
+  createdAt DateTime @default(now())
+
+  answers      Answer[]
+  matchRecords MatchRecord[]
+}
+
+// ユーザーの回答
+model Answer {
+  id          String   @id @default(cuid())
+  userId      String
+  questionId  String
+  choiceIndex Int      // 0-3
+  answeredAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([userId, questionId])
+}
+
+// ペアごとの一致記録
+model MatchRecord {
+  id           String   @id @default(cuid())
+  connectionId String
+  questionId   String
+  matched      Boolean
+  checkedAt    DateTime @default(now())
+
+  connection Connection @relation(fields: [connectionId], references: [id])
+  question   Question   @relation(fields: [questionId], references: [id])
+
+  @@unique([connectionId, questionId])
+}
+
+// 再接続トリガー
+model Trigger {
+  id           String   @id @default(cuid())
+  connectionId String
+  message      String   // 推奨メッセージ
+  isViewed     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  connection Connection @relation(fields: [connectionId], references: [id])
+}
