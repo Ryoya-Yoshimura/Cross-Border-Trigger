@@ -14,6 +14,7 @@ export default function DailyPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [poppingIndex, setPoppingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/questions")
@@ -30,6 +31,8 @@ export default function DailyPage() {
   const handleSelect = (index: number) => {
     if (answered !== null) return;
     setSelected(index);
+    setPoppingIndex(index);
+    setTimeout(() => setPoppingIndex(null), 300);
   };
 
   const handleSubmit = async () => {
@@ -87,7 +90,7 @@ export default function DailyPage() {
       {/* 回答済みバナー */}
       {answered !== null && (
         <div
-          className="rounded-2xl p-4 text-center"
+          className="rounded-2xl p-4 text-center animate-slide-in"
           style={{ background: "#f0f9ff", border: "1.5px solid var(--accent)" }}
         >
           <p className="text-sm font-semibold" style={{ color: "var(--accent)" }}>
@@ -111,7 +114,9 @@ export default function DailyPage() {
               key={index}
               onClick={() => handleSelect(index)}
               disabled={isAnswered}
-              className="rounded-2xl overflow-hidden text-left"
+              aria-pressed={isSelected}
+              aria-label={`${choice.label}を選ぶ${isChosen ? "（選択済み）" : ""}`}
+              className={`rounded-2xl overflow-hidden text-left${poppingIndex === index ? " animate-card-pop" : ""}`}
               style={{
                 border: isChosen
                   ? "2.5px solid var(--accent)"
@@ -120,8 +125,7 @@ export default function DailyPage() {
                   : "1.5px solid var(--border)",
                 background: "white",
                 opacity: isAnswered && !isChosen ? 0.5 : 1,
-                transform: isSelected && !isAnswered ? "scale(1.02)" : "scale(1)",
-                transition: "transform 0.15s ease, opacity 0.2s ease",
+                transition: "opacity 0.2s ease",
               }}
             >
               {/* 画像エリア */}

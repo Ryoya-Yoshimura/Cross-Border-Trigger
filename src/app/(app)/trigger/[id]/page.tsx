@@ -5,6 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 
 type MatchItem = { date: string; label: string };
 
+function formatDate(isoDate: string): string {
+  const [, month, day] = isoDate.split("-");
+  return `${parseInt(month)}月${parseInt(day)}日`;
+}
+
 type TriggerData = {
   id: string;
   message: string;
@@ -110,7 +115,7 @@ export default function TriggerDetailPage() {
                     className="text-xs w-20 flex-shrink-0"
                     style={{ color: "var(--muted)" }}
                   >
-                    {item.date}
+                    {formatDate(item.date)}
                   </span>
                   {/* 選択肢ラベル */}
                   <span
@@ -147,6 +152,8 @@ export default function TriggerDetailPage() {
             <button
               key={i}
               onClick={() => setSelectedMessage(i)}
+              aria-pressed={selectedMessage === i}
+              aria-label={`メッセージ${i + 1}を選択`}
               className="w-full rounded-xl p-4 text-left text-sm"
               style={{
                 background: selectedMessage === i ? "var(--primary-light)" : "white",
@@ -165,6 +172,7 @@ export default function TriggerDetailPage() {
 
         <button
           onClick={copyMessage}
+          aria-label="選択中のメッセージをクリップボードにコピー"
           className="w-full rounded-xl py-3 text-sm font-semibold"
           style={{
             background: copied ? "var(--accent)" : "var(--primary)",
@@ -174,6 +182,11 @@ export default function TriggerDetailPage() {
         >
           {copied ? "✅ コピーしました！SNSで送ってみよう" : "このメッセージをコピー"}
         </button>
+        {copied && (
+          <p role="status" className="sr-only">
+            メッセージをコピーしました
+          </p>
+        )}
       </section>
 
       <p className="text-xs text-center" style={{ color: "var(--muted)" }}>
@@ -182,6 +195,7 @@ export default function TriggerDetailPage() {
 
       <button
         onClick={() => router.back()}
+        aria-label="前のページに戻る"
         className="w-full rounded-xl py-2.5 text-sm"
         style={{ background: "white", border: "1.5px solid var(--border)", color: "var(--muted)" }}
       >

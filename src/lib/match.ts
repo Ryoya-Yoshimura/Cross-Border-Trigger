@@ -15,10 +15,22 @@ export async function checkAndCreateTrigger(connectionId: string) {
   const allMatched = recentMatches.every((m) => m.matched);
   if (!allMatched) return null;
 
-  // 重複チェック：直近の一致以降にトリガーがすでに存在するか
-  const lastMatchDate = recentMatches[0].checkedAt;
+  // 日付が連続しているか確認（ギャップがあると誤発火するため）
+  // recentMatches は checkedAt desc 順なので dates[0] が最新
+  const dates = recentMatches.map((m) => m.question.date).sort().reverse();
+  for (let i = 0; i < dates.length - 1; i++) {
+    const current = new Date(dates[i]);
+    const next = new Date(dates[i + 1]);
+    const diffDays = Math.round((current.getTime() - next.getTime()) / 86400000);
+    if (diffDays !== 1) return null; // 連続していない日付がある
+  }
+
+  // 重複チェック：4件のうち最も古い質問日以降にトリガーが存在するか
+  // checkedAt（処理タイミング）ではなく question.date（安定した日付文字列）基準にすることで
+  // 同じ4日間ウィンドウに対して複数回トリガーが発火するのを防ぐ
+  const oldestQuestionDate = recentMatches[recentMatches.length - 1].question.date;
   const existingTrigger = await prisma.trigger.findFirst({
-    where: { connectionId, createdAt: { gte: lastMatchDate } },
+    where: { connectionId, createdAt: { gte: new Date(oldestQuestionDate) } },
   });
   if (existingTrigger) return null;
 
