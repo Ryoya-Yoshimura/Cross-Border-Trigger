@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+// useSearchParams requires Suspense boundary
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/home";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +29,7 @@ export default function LoginPage() {
     if (result?.error) {
       setError("メールアドレスまたはパスワードが正しくありません");
     } else {
-      router.push("/home");
+      router.push(callbackUrl);
     }
 
     setLoading(false);
@@ -116,5 +119,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
