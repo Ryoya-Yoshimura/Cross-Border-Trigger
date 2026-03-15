@@ -18,7 +18,8 @@ export default async function ConnectionsPage() {
       user2: { select: { id: true, name: true } },
       matchRecords: {
         orderBy: { checkedAt: "desc" },
-        take: 7,
+        take: 30,
+        include: { question: { select: { date: true } } },
       },
       triggers: {
         where: { isViewed: false },
@@ -28,21 +29,49 @@ export default async function ConnectionsPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  const today = process.env.DEBUG_DATE ?? new Date().toISOString().slice(0, 10);
+
   const summaries = connections.map((conn) => {
     const partner = conn.userId1 === userId ? conn.user2 : conn.user1;
-    let consecutiveMatches = 0;
-    for (const m of conn.matchRecords) {
-      if (m.matched) consecutiveMatches++;
-      else break;
+
+    // 日付の降順ソート
+    const dates = conn.matchRecords
+      .map((m) => m.question.date)
+      .sort()
+      .reverse();
+
+    // 連続回答日数（今日 or 昨日から連続しているか）
+    let consecutiveAnswerDays = 0;
+    let expected = today;
+    // 今日記録がなければ昨日から数える
+    if (dates[0] && dates[0] < today) {
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      expected = yesterday.toISOString().slice(0, 10);
     }
-    const totalMatches = conn.matchRecords.filter((m) => m.matched).length;
+    for (const date of dates) {
+      if (date === expected) {
+        consecutiveAnswerDays++;
+        const d = new Date(expected);
+        d.setDate(d.getDate() - 1);
+        expected = d.toISOString().slice(0, 10);
+      } else {
+        break;
+      }
+    }
+
+    // 最終回答からの経過日数
+    const lastDate = dates[0];
+    const daysSinceLast = lastDate
+      ? Math.floor((new Date(today).getTime() - new Date(lastDate).getTime()) / 86400000)
+      : null;
+
     return {
       id: conn.id,
       partner,
-      consecutiveMatches,
-      totalMatches,
+      consecutiveAnswerDays,
+      daysSinceLast,
       hasTrigger: conn.triggers.length > 0,
-      daysTogether: conn.matchRecords.length,
     };
   });
 
@@ -106,15 +135,17 @@ export default async function ConnectionsPage() {
                     )}
                   </div>
                   <div className="flex gap-3 mt-1">
-                    <span className="text-xs" style={{ color: "var(--muted)" }}>
-                      回答 {s.daysTogether}日
-                    </span>
-                    <span className="text-xs" style={{ color: "var(--muted)" }}>
-                      一致 {s.totalMatches}日
-                    </span>
-                    {s.consecutiveMatches > 0 && (
+                    {s.consecutiveAnswerDays > 0 && (
                       <span className="text-xs font-medium" style={{ color: "var(--primary)" }}>
-                        🔥 {s.consecutiveMatches}連続
+                        🔥 {s.consecutiveAnswerDays}日連続回答中
+                      </span>
+                    )}
+                    {s.daysSinceLast === null && (
+                      <span className="text-xs" style={{ color: "var(--muted)" }}>まだ回答なし</span>
+                    )}
+                    {s.daysSinceLast !== null && s.consecutiveAnswerDays === 0 && (
+                      <span className="text-xs" style={{ color: "var(--muted)" }}>
+                        最終回答 {s.daysSinceLast === 0 ? "今日" : `${s.daysSinceLast}日前`}
                       </span>
                     )}
                   </div>
