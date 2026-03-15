@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "npx tsx prisma/seed.ts"
+    "seed": "npx tsx prisma/seed.ts",
+    "demo:day1": "DEMO_DAY=1 npx tsx prisma/demo-seed.ts",
+    "demo:day2": "DEMO_DAY=2 npx tsx prisma/demo-seed.ts",
+    "demo:day3": "DEMO_DAY=3 npx tsx prisma/demo-seed.ts",
+    "demo:day4": "DEMO_DAY=4 npx tsx prisma/demo-seed.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

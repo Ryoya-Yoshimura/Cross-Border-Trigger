@@ -3,13 +3,17 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Cross Border",
+  title: "Cross-Border-Trigger",
   description: "疎遠になった人と、また話すきっかけを",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Cross Border",
+    title: "Cross-Border-Trigger",
   },
 };
 

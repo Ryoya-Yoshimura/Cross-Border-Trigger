@@ -68,11 +68,6 @@ const SAMPLE_NEWS: NewsArticle[] = [
   },
 ];
 
-function getPreviousDate(date: string): string {
-  const d = new Date(date);
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
 
 function isBrightNews(article: NewsArticle): boolean {
   const text = `${article.title} ${article.description ?? ""}`.toLowerCase();
@@ -85,29 +80,28 @@ function isBrightNews(article: NewsArticle): boolean {
  * 昨日のニュースを取得する。
  * NEWS_API_KEY 未設定時はサンプルデータを返す。
  */
-export async function fetchYesterdayNews(date: string): Promise<NewsArticle[]> {
+export async function fetchYesterdayNews(_date: string): Promise<NewsArticle[]> {
   const apiKey = process.env.NEWS_API_KEY;
   if (!apiKey) {
     console.log("[news-api] NEWS_API_KEY not set, using sample data");
     return SAMPLE_NEWS;
   }
 
-  const yesterday = getPreviousDate(date);
-  // スポーツ・芸能・エンタメ・ライフスタイルを幅広くカバー
-  const query = "sports+music+movie+entertainment+celebrity+festival+win+championship";
+  // top-headlines（無料プランで確実に動作するエンドポイント）
   const url =
-    `https://newsapi.org/v2/everything?q=${query}` +
-    `&from=${yesterday}&to=${yesterday}` +
-    `&sortBy=popularity&language=en&pageSize=40&apiKey=${apiKey}`;
+    `https://newsapi.org/v2/top-headlines?` +
+    `language=en&pageSize=40&apiKey=${apiKey}`;
 
   try {
-    const res = await fetch(url, { next: { revalidate: 3600 } });
-    if (!res.ok) {
-      console.warn("[news-api] API returned", res.status, "- using sample data");
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok || data.status === "error") {
+      console.warn("[news-api] API error:", data.code, data.message, "- using sample data");
       return SAMPLE_NEWS;
     }
-    const data = await res.json();
-    return (data.articles ?? []) as NewsArticle[];
+    const articles = (data.articles ?? []) as NewsArticle[];
+    console.log(`[news-api] Fetched ${articles.length} articles from top-headlines`);
+    return articles;
   } catch (e) {
     console.warn("[news-api] Fetch failed:", e);
     return SAMPLE_NEWS;

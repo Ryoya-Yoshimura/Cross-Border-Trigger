@@ -5,6 +5,7 @@ import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -40,9 +41,9 @@ function LoginForm() {
       style={{ background: "var(--background)" }}>
       {/* ロゴ */}
       <div className="mb-8 text-center">
-        <div className="text-4xl mb-3">🌉</div>
+        <Image src="/icon.png" alt="Cross-Border-Trigger" width={80} height={80} className="mx-auto mb-3 rounded-2xl" />
         <h1 className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>
-          Cross Border
+          Cross-Border-Trigger
         </h1>
         <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
           疎遠になった人と、また話すきっかけを

@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Cross Border",
-    short_name: "CrossBorder",
+    name: "Cross-Border-Trigger",
+    short_name: "CBTrigger",
     description: "疎遠になった人と、また話すきっかけを",
     start_url: "/home",
     display: "standalone",
