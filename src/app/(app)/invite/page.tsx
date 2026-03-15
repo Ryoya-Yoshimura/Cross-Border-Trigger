@@ -9,11 +9,36 @@ export default function InvitePage() {
   const [result, setResult] = useState<{ success?: string; error?: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareError, setShareError] = useState("");
 
   const myInviteCode = session?.user?.inviteCode ?? "読み込み中...";
-  const inviteUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/invite/${myInviteCode}`
-    : "";
+  const inviteUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/invite/${myInviteCode}`
+      : "";
+
+  // Web Share API（スマホではネイティブシェートシートが開く）
+  const handleShare = async () => {
+    setShareError("");
+    const shareData = {
+      title: "Cross Borderに参加しませんか？",
+      text: `${session?.user?.name ?? "友達"} さんから招待が届いています！毎日の4択で気が合うか確かめてみよう。`,
+      url: inviteUrl,
+    };
+
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // キャンセルは無視
+      }
+    } else {
+      // フォールバック: クリップボードにコピー
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const copyInviteLink = async () => {
     await navigator.clipboard.writeText(inviteUrl);
@@ -21,7 +46,7 @@ export default function InvitePage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleConnect = async (e: React.FormEvent) => {
+  const handleConnect = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setResult(null);
     setLoading(true);
@@ -44,55 +69,97 @@ export default function InvitePage() {
     setLoading(false);
   };
 
+  const lineShareUrl = `https://line.me/R/msg/text/?${encodeURIComponent(
+    `Cross Borderへの招待です！\n${inviteUrl}`
+  )}`;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold">招待・つながる</h1>
         <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-          招待コードを共有して、友達とつながりましょう
+          招待リンクを共有して、友達とつながりましょう
         </p>
       </div>
 
       {/* 自分の招待コード */}
       <section>
         <h2 className="font-semibold text-sm mb-3" style={{ color: "var(--muted)" }}>
-          あなたの招待コード
+          あなたの招待リンク
         </h2>
         <div
           className="rounded-2xl p-5"
           style={{ background: "white", border: "1.5px solid var(--border)" }}
         >
+          {/* 招待コード表示 */}
           <div
-            className="rounded-xl p-3 text-center font-mono text-lg font-bold tracking-widest mb-3"
+            className="rounded-xl p-3 text-center font-mono text-sm font-bold tracking-wider mb-4 break-all"
             style={{ background: "var(--background)", color: "var(--primary)" }}
           >
-            {myInviteCode}
+            {inviteUrl || myInviteCode}
           </div>
+
+          {/* シェアボタン群 */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {/* Web Share / コピー */}
+            <button
+              onClick={handleShare}
+              className="rounded-xl py-2.5 text-sm font-semibold"
+              style={{
+                background: copied ? "var(--accent)" : "var(--primary)",
+                color: "white",
+              }}
+            >
+              {copied ? "✅ コピー済み" : "📤 共有する"}
+            </button>
+
+            {/* LINEで送る */}
+            <a
+              href={lineShareUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl py-2.5 text-sm font-semibold text-center block"
+              style={{ background: "#06C755", color: "white" }}
+            >
+              📱 LINEで送る
+            </a>
+          </div>
+
+          {/* コピーのみボタン（フォールバック） */}
           <button
             onClick={copyInviteLink}
-            className="w-full rounded-xl py-2.5 text-sm font-semibold transition-all"
+            className="w-full rounded-xl py-2 text-xs"
             style={{
-              background: copied ? "var(--accent)" : "var(--primary)",
-              color: "white",
+              background: "transparent",
+              color: "var(--muted)",
+              border: "1px solid var(--border)",
             }}
           >
-            {copied ? "✅ コピーしました！" : "招待リンクをコピー"}
+            {copied ? "✅ コピーしました" : "リンクをコピー"}
           </button>
-          <p className="text-xs text-center mt-2" style={{ color: "var(--muted)" }}>
-            このリンクまたはコードを友達に送ってください
+
+          {shareError && (
+            <p className="text-xs text-red-500 text-center mt-2">{shareError}</p>
+          )}
+
+          <p className="text-xs text-center mt-3" style={{ color: "var(--muted)" }}>
+            リンクを開いた相手が登録 or ログインするとつながります
           </p>
         </div>
       </section>
 
-      {/* 招待コードで接続 */}
+      {/* 招待コードで接続（相手のコードを入力） */}
       <section>
         <h2 className="font-semibold text-sm mb-3" style={{ color: "var(--muted)" }}>
-          招待コードで友達とつながる
+          招待コードで手動入力
         </h2>
         <div
           className="rounded-2xl p-5"
           style={{ background: "white", border: "1.5px solid var(--border)" }}
         >
+          <p className="text-xs mb-3" style={{ color: "var(--muted)" }}>
+            相手から招待コードを直接受け取った場合はここに入力
+          </p>
           <form onSubmit={handleConnect} className="space-y-3">
             <input
               type="text"
@@ -118,14 +185,18 @@ export default function InvitePage() {
           </form>
 
           {result?.success && (
-            <div className="mt-3 p-3 rounded-xl text-sm text-center font-medium"
-              style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+            <div
+              className="mt-3 p-3 rounded-xl text-sm text-center font-medium"
+              style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+            >
               🎉 {result.success}
             </div>
           )}
           {result?.error && (
-            <div className="mt-3 p-3 rounded-xl text-sm text-center"
-              style={{ background: "#fde8e8", color: "#c0392b" }}>
+            <div
+              className="mt-3 p-3 rounded-xl text-sm text-center"
+              style={{ background: "#fde8e8", color: "#c0392b" }}
+            >
               {result.error}
             </div>
           )}

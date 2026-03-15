@@ -1,51 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get("inviteCode");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    });
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-    const data = await res.json();
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
 
-    if (!res.ok) {
-      setError(data.error || "登録に失敗しました");
+      if (!res.ok) {
+        setError(data.error || "登録に失敗しました");
+        return;
+      }
+
+      // 登録後すぐにログイン
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("ログインに失敗しました。ログインページからお試しください。");
+      } else {
+        // 招待コードがあれば招待ページへ、なければホームへ
+        router.push(inviteCode ? `/invite/${inviteCode}` : "/home");
+      }
+    } catch {
+      setError("通信エラーが発生しました。もう一度お試しください。");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // 登録後すぐにログイン
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-
-    if (result?.error) {
-      setError("ログインに失敗しました。ログインページからお試しください。");
-    } else {
-      router.push("/home");
-    }
-
-    setLoading(false);
   };
 
   return (
@@ -61,6 +68,16 @@ export default function RegisterPage() {
           疎遠になった人と、また話すきっかけを
         </p>
       </div>
+
+      {/* 招待からの登録の場合、案内を表示 */}
+      {inviteCode && (
+        <div
+          className="w-full max-w-sm rounded-xl px-4 py-3 mb-4 text-sm text-center"
+          style={{ background: "var(--primary-light)", color: "var(--primary)" }}
+        >
+          登録後、自動的につながります 🎉
+        </div>
+      )}
 
       {/* フォーム */}
       <div
@@ -136,11 +153,23 @@ export default function RegisterPage() {
 
         <p className="text-center text-sm mt-4" style={{ color: "var(--muted)" }}>
           すでにアカウントがある方は{" "}
-          <Link href="/login" className="font-medium" style={{ color: "var(--accent)" }}>
+          <Link
+            href={inviteCode ? `/login?callbackUrl=/invite/${inviteCode}` : "/login"}
+            className="font-medium"
+            style={{ color: "var(--accent)" }}
+          >
             ログイン
           </Link>
         </p>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }
