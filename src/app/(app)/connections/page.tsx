@@ -77,17 +77,22 @@ export default async function ConnectionsPage() {
       ) : (
         <div className="space-y-3">
           {summaries.map((s) => (
-            <Link key={s.id} href={`/connections/${s.id}`}>
-              <div
-                className="rounded-2xl p-4 flex items-center gap-4 cursor-pointer transition-opacity hover:opacity-90"
-                style={{ background: "white", border: "1.5px solid var(--border)" }}
+            <div
+              key={s.id}
+              className="rounded-2xl p-4 flex items-center gap-4"
+              style={{ background: "white", border: "1.5px solid var(--border)" }}
+            >
+              {/* アバター → プロフィールへ */}
+              <Link
+                href={`/profile/${s.partner.id}`}
+                className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+                style={{ background: "var(--accent)" }}
               >
-                <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-                  style={{ background: "var(--accent)" }}
-                >
-                  {s.partner.name[0]}
-                </div>
+                {s.partner.name[0]}
+              </Link>
+
+              {/* 名前・統計 → つながり詳細へ */}
+              <Link href={`/connections/${s.id}`} className="flex-1 min-w-0 flex items-center gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold">{s.partner.name}</p>
@@ -115,8 +120,8 @@ export default async function ConnectionsPage() {
                   </div>
                 </div>
                 <span style={{ color: "var(--muted)" }}>›</span>
-              </div>
-            </Link>
+              </Link>
+            </div>
           ))}
         </div>
       )}

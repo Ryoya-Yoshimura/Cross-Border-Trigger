@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 
 type MatchItem = { date: string; label: string };
 
@@ -13,6 +14,7 @@ function formatDate(isoDate: string): string {
 type TriggerData = {
   id: string;
   message: string;
+  partnerId: string;
   partnerName: string;
   createdAt: string;
   matchContext: MatchItem[];
@@ -90,7 +92,9 @@ export default function TriggerDetailPage() {
       >
         <div className="text-5xl mb-3">🎉</div>
         <h1 className="text-xl font-bold">
-          {trigger.partnerName} さんと気が合います！
+          <Link href={`/profile/${trigger.partnerId}`} style={{ color: "inherit", textDecoration: "underline", textDecorationColor: "var(--primary)" }}>
+            {trigger.partnerName}
+          </Link>{" "}さんと気が合います！
         </h1>
         <p className="text-sm mt-2" style={{ color: "var(--muted)" }}>
           {trigger.message}

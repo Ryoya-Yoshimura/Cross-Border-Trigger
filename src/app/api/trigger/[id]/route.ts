@@ -69,6 +69,7 @@ export async function GET(
     trigger: {
       id: trigger.id,
       message: trigger.message,
+      partnerId: partner.id,
       partnerName: partner.name,
       createdAt: trigger.createdAt.toISOString(),
       matchContext,
