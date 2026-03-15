@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 type Choice = { label: string; imageUrl: string };
-type Question = { id: string; date: string; choices: Choice[] };
+type Question = { id: string; date: string; text: string; choices: Choice[] };
 
 export default function DailyPage() {
   const router = useRouter();
@@ -22,6 +21,7 @@ export default function DailyPage() {
       .then((data) => {
         setQuestion(data.question);
         setAnswered(data.answered);
+        if (data.answered !== null) setSelected(data.answered);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -44,7 +44,6 @@ export default function DailyPage() {
     });
 
     const data = await res.json();
-
     if (res.ok) {
       setAnswered(selected);
     } else {
@@ -74,26 +73,25 @@ export default function DailyPage() {
 
   return (
     <div className="space-y-5">
+      {/* ヘッダー */}
       <div>
         <p className="text-xs font-medium" style={{ color: "var(--muted)" }}>
           今日の質問
         </p>
-        <h1 className="text-xl font-bold mt-0.5">
-          今の気分に近いのはどれ？
-        </h1>
+        <h1 className="text-xl font-bold mt-1">{question.text}</h1>
         <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
           直感で選んでみてください
         </p>
       </div>
 
-      {/* 回答済み表示 */}
+      {/* 回答済みバナー */}
       {answered !== null && (
         <div
           className="rounded-2xl p-4 text-center"
-          style={{ background: "var(--accent-light)", border: "1.5px solid var(--accent)" }}
+          style={{ background: "#f0f9ff", border: "1.5px solid var(--accent)" }}
         >
           <p className="text-sm font-semibold" style={{ color: "var(--accent)" }}>
-            ✅ 今日の回答は「{question.choices[answered].label}」でした
+            ✅ 今日の回答：「{question.choices[answered].label}」
           </p>
           <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
             つながっている人との一致を確認中...
@@ -106,33 +104,43 @@ export default function DailyPage() {
         {question.choices.map((choice, index) => {
           const isSelected = selected === index;
           const isAnswered = answered !== null;
-          const isCorrect = answered === index;
+          const isChosen = answered === index;
 
           return (
             <button
               key={index}
               onClick={() => handleSelect(index)}
               disabled={isAnswered}
-              className="rounded-2xl overflow-hidden text-left transition-all"
+              className="rounded-2xl overflow-hidden text-left"
               style={{
-                border: isCorrect
+                border: isChosen
                   ? "2.5px solid var(--accent)"
                   : isSelected
                   ? "2.5px solid var(--primary)"
                   : "1.5px solid var(--border)",
                 background: "white",
-                opacity: isAnswered && !isCorrect ? 0.6 : 1,
+                opacity: isAnswered && !isChosen ? 0.5 : 1,
                 transform: isSelected && !isAnswered ? "scale(1.02)" : "scale(1)",
+                transition: "transform 0.15s ease, opacity 0.2s ease",
               }}
             >
-              {/* 画像エリア（ダミー） */}
-              <div
-                className="w-full h-28 flex items-center justify-center text-4xl"
-                style={{
-                  background: getGradient(index),
-                }}
-              >
-                {getEmoji(index)}
+              {/* 画像エリア */}
+              <div className="w-full h-28 relative overflow-hidden" style={{ background: "var(--border)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={choice.imageUrl}
+                  alt={choice.label}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+                {isChosen && (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{ background: "rgba(106,159,216,0.35)" }}
+                  >
+                    <span className="text-3xl">✅</span>
+                  </div>
+                )}
               </div>
               <div className="px-3 py-2.5">
                 <p className="text-sm font-medium">{choice.label}</p>
@@ -147,11 +155,12 @@ export default function DailyPage() {
         <button
           onClick={handleSubmit}
           disabled={selected === null || submitting}
-          className="w-full rounded-xl py-3 text-sm font-semibold transition-opacity"
+          className="w-full rounded-xl py-3 text-sm font-semibold"
           style={{
             background: "var(--primary)",
             color: "white",
             opacity: selected === null || submitting ? 0.5 : 1,
+            transition: "opacity 0.2s",
           }}
         >
           {submitting ? "送信中..." : "この答えで決定！"}
@@ -171,19 +180,4 @@ export default function DailyPage() {
       )}
     </div>
   );
-}
-
-function getGradient(index: number) {
-  const gradients = [
-    "linear-gradient(135deg, #fde8e4, #f87c6a)",
-    "linear-gradient(135deg, #e4f0fd, #6a9fd8)",
-    "linear-gradient(135deg, #e8fde4, #6ad87c)",
-    "linear-gradient(135deg, #fde4f8, #d86ac8)",
-  ];
-  return gradients[index];
-}
-
-function getEmoji(index: number) {
-  const emojis = ["🌸", "🌊", "🌿", "🌙"];
-  return emojis[index];
 }

@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -42,12 +42,36 @@ export async function GET(
     await prisma.trigger.update({ where: { id }, data: { isViewed: true } });
   }
 
+  // 一致の証拠（直近4件の一致記録 + 選んだ選択肢ラベル）
+  const matchRecords = await prisma.matchRecord.findMany({
+    where: { connectionId: trigger.connectionId, matched: true },
+    orderBy: { checkedAt: "desc" },
+    take: 4,
+    include: { question: true },
+  });
+
+  const matchContext = await Promise.all(
+    matchRecords.map(async (record) => {
+      // どちらのユーザーの回答でも同じ選択肢なので、自分のものを取得
+      const answer = await prisma.answer.findFirst({
+        where: { questionId: record.questionId, userId },
+      });
+      const choices = JSON.parse(record.question.choices) as { label: string; imageUrl: string }[];
+      const label = answer ? (choices[answer.choiceIndex]?.label ?? "不明") : "不明";
+      return {
+        date: record.question.date,
+        label,
+      };
+    })
+  );
+
   return NextResponse.json({
     trigger: {
       id: trigger.id,
       message: trigger.message,
       partnerName: partner.name,
       createdAt: trigger.createdAt.toISOString(),
+      matchContext,
     },
   });
 }

@@ -3,28 +3,30 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// 今日の問題を取得（なければシード）
-export async function GET(req: NextRequest) {
+function getToday() {
+  return process.env.DEBUG_DATE ?? new Date().toISOString().slice(0, 10);
+}
+
+export async function GET(_req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "未認証" }, { status: 401 });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getToday();
+  const set = getDailySet(today);
 
   let question = await prisma.question.findUnique({ where: { date: today } });
 
   if (!question) {
-    // 当日の問題がなければダミーを生成
     question = await prisma.question.create({
       data: {
         date: today,
-        choices: JSON.stringify(getDailyChoices(today)),
+        choices: JSON.stringify(set.choices),
       },
     });
   }
 
-  // 今日すでに回答済みか確認
   const answer = await prisma.answer.findUnique({
     where: { userId_questionId: { userId: session.user.id, questionId: question.id } },
   });
@@ -32,13 +34,13 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     question: {
       ...question,
+      text: set.text,
       choices: JSON.parse(question.choices),
     },
     answered: answer ? answer.choiceIndex : null,
   });
 }
 
-// 今日の問題に回答
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -50,7 +52,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "無効な回答" }, { status: 400 });
   }
 
-  // 既存の回答チェック
   const existing = await prisma.answer.findUnique({
     where: { userId_questionId: { userId: session.user.id, questionId } },
   });
@@ -62,7 +63,6 @@ export async function POST(req: NextRequest) {
     data: { userId: session.user.id, questionId, choiceIndex },
   });
 
-  // 接続相手のすべてのConnectionでマッチング確認
   const connections = await prisma.connection.findMany({
     where: {
       OR: [{ userId1: session.user.id }, { userId2: session.user.id }],
@@ -83,7 +83,6 @@ export async function POST(req: NextRequest) {
         update: { matched },
       });
 
-      // トリガー判定
       if (matched) {
         const { checkAndCreateTrigger } = await import("@/lib/match");
         await checkAndCreateTrigger(conn.id);
@@ -94,34 +93,78 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ answer });
 }
 
-// 日付ベースのダミー問題セット
-function getDailyChoices(date: string) {
-  const sets = [
-    [
-      { label: "朝の珈琲", imageUrl: "/images/coffee.jpg" },
-      { label: "朝の紅茶", imageUrl: "/images/tea.jpg" },
-      { label: "朝のスムージー", imageUrl: "/images/smoothie.jpg" },
-      { label: "朝は何も飲まない", imageUrl: "/images/nothing.jpg" },
-    ],
-    [
-      { label: "山の景色", imageUrl: "/images/mountain.jpg" },
-      { label: "海の景色", imageUrl: "/images/ocean.jpg" },
-      { label: "街の夜景", imageUrl: "/images/city.jpg" },
-      { label: "森の小道", imageUrl: "/images/forest.jpg" },
-    ],
-    [
-      { label: "ひとりで過ごす休日", imageUrl: "/images/solo.jpg" },
-      { label: "友達とわいわい", imageUrl: "/images/friends.jpg" },
-      { label: "家族でゆっくり", imageUrl: "/images/family.jpg" },
-      { label: "新しい場所を探索", imageUrl: "/images/explore.jpg" },
-    ],
-    [
-      { label: "読書", imageUrl: "/images/book.jpg" },
-      { label: "映画・ドラマ", imageUrl: "/images/movie.jpg" },
-      { label: "音楽", imageUrl: "/images/music.jpg" },
-      { label: "アウトドア", imageUrl: "/images/outdoor.jpg" },
-    ],
+type QuestionSet = {
+  text: string;
+  choices: { label: string; imageUrl: string }[];
+};
+
+function getDailySet(date: string): QuestionSet {
+  const SETS: QuestionSet[] = [
+    {
+      text: "今朝の気分、飲み物で表すと？",
+      choices: [
+        { label: "珈琲", imageUrl: "https://picsum.photos/seed/coffeecup/400/300" },
+        { label: "紅茶", imageUrl: "https://picsum.photos/seed/greentea/400/300" },
+        { label: "スムージー", imageUrl: "https://picsum.photos/seed/smoothiedrink/400/300" },
+        { label: "お水だけ", imageUrl: "https://picsum.photos/seed/mineralwater/400/300" },
+      ],
+    },
+    {
+      text: "週末に行くなら、どの景色？",
+      choices: [
+        { label: "山", imageUrl: "https://picsum.photos/seed/mountainview/400/300" },
+        { label: "海", imageUrl: "https://picsum.photos/seed/oceanbeach/400/300" },
+        { label: "街の夜景", imageUrl: "https://picsum.photos/seed/citynightview/400/300" },
+        { label: "森の小道", imageUrl: "https://picsum.photos/seed/forestpath/400/300" },
+      ],
+    },
+    {
+      text: "理想の休日の過ごし方は？",
+      choices: [
+        { label: "ひとりでゆっくり", imageUrl: "https://picsum.photos/seed/solorelax/400/300" },
+        { label: "友達とわいわい", imageUrl: "https://picsum.photos/seed/friendsfun/400/300" },
+        { label: "家族でのんびり", imageUrl: "https://picsum.photos/seed/familytime/400/300" },
+        { label: "新しい場所を探索", imageUrl: "https://picsum.photos/seed/adventuretrip/400/300" },
+      ],
+    },
+    {
+      text: "リラックスするなら、どれ？",
+      choices: [
+        { label: "読書", imageUrl: "https://picsum.photos/seed/readingbook/400/300" },
+        { label: "映画・ドラマ", imageUrl: "https://picsum.photos/seed/movienight/400/300" },
+        { label: "音楽を聴く", imageUrl: "https://picsum.photos/seed/musicvibes/400/300" },
+        { label: "アウトドア", imageUrl: "https://picsum.photos/seed/outdoorhike/400/300" },
+      ],
+    },
+    {
+      text: "今の気分、食べ物で表すと？",
+      choices: [
+        { label: "ラーメン", imageUrl: "https://picsum.photos/seed/ramenjapaness/400/300" },
+        { label: "スイーツ", imageUrl: "https://picsum.photos/seed/dessertcake/400/300" },
+        { label: "サラダ", imageUrl: "https://picsum.photos/seed/freshsalad/400/300" },
+        { label: "焼肉", imageUrl: "https://picsum.photos/seed/grillbbq/400/300" },
+      ],
+    },
+    {
+      text: "今夜、したいことは？",
+      choices: [
+        { label: "ゆっくり入浴", imageUrl: "https://picsum.photos/seed/bathrelax/400/300" },
+        { label: "夜ランニング", imageUrl: "https://picsum.photos/seed/runningnight/400/300" },
+        { label: "ゲーム", imageUrl: "https://picsum.photos/seed/gamingsetup/400/300" },
+        { label: "早めに就寝", imageUrl: "https://picsum.photos/seed/sleepcozy/400/300" },
+      ],
+    },
+    {
+      text: "旅行先に選ぶなら？",
+      choices: [
+        { label: "京都", imageUrl: "https://picsum.photos/seed/kyototemple/400/300" },
+        { label: "沖縄", imageUrl: "https://picsum.photos/seed/okinawaocean/400/300" },
+        { label: "北海道", imageUrl: "https://picsum.photos/seed/hokkaidosnow/400/300" },
+        { label: "海外旅行", imageUrl: "https://picsum.photos/seed/worldtravel/400/300" },
+      ],
+    },
   ];
-  const index = date.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % sets.length;
-  return sets[index];
+
+  const index = date.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % SETS.length;
+  return SETS[index];
 }
