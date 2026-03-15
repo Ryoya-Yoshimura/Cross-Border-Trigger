@@ -1,42 +1,45 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
 
-export default async function ConnectionDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+export default function ConnectionDetailPage() {
+  const { user } = useAuth();
+  const params = useParams();
+  const router = useRouter();
+  const [connection, setConnection] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const userId = session.user.id;
+  useEffect(() => {
+    async function fetchConnection() {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch(`/api/connections/${params.id}`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setConnection(data.connection);
+        } else {
+          router.push("/home");
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchConnection();
+  }, [params.id, user, router]);
 
-  const connection = await prisma.connection.findUnique({
-    where: { id },
-    include: {
-      user1: { select: { id: true, name: true } },
-      user2: { select: { id: true, name: true } },
-      matchRecords: {
-        orderBy: { checkedAt: "desc" },
-        take: 14,
-        include: { question: true },
-      },
-      triggers: {
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
-
-  if (
-    !connection ||
-    (connection.userId1 !== userId && connection.userId2 !== userId)
-  ) {
-    notFound();
+  if (loading || !user) {
+    return <div className="p-8 text-center text-sm text-muted">読み込み中...</div>;
   }
+
+  if (!connection) return null;
 
   // トリガー未発火の場合は詳細を見せない
   if (connection.triggers.length === 0) {
@@ -54,15 +57,14 @@ export default async function ConnectionDetailPage({
     );
   }
 
-  const partner =
-    connection.userId1 === userId ? connection.user2 : connection.user1;
+  const partner = connection.partner;
 
   let consecutiveMatches = 0;
   for (const m of connection.matchRecords) {
     if (m.matched) consecutiveMatches++;
     else break;
   }
-  const totalMatches = connection.matchRecords.filter((m) => m.matched).length;
+  const totalMatches = connection.matchRecords.filter((m: any) => m.matched).length;
 
   return (
     <div className="space-y-5">
@@ -134,7 +136,7 @@ export default async function ConnectionDetailPage({
             再接続のきっかけ
           </h2>
           <div className="space-y-2">
-            {connection.triggers.map((trigger) => (
+            {connection.triggers.map((trigger: any) => (
               <Link key={trigger.id} href={`/trigger/${trigger.id}`}>
                 <div
                   className="rounded-2xl p-4 cursor-pointer transition-opacity hover:opacity-90"
@@ -161,14 +163,14 @@ export default async function ConnectionDetailPage({
           最近の記録
         </h2>
         <div className="space-y-1.5">
-          {connection.matchRecords.slice(0, 7).map((record) => (
+          {connection.matchRecords.slice(0, 7).map((record: any) => (
             <div
               key={record.id}
               className="rounded-xl px-4 py-2.5 flex items-center justify-between"
               style={{ background: "white", border: "1.5px solid var(--border)" }}
             >
               <span className="text-sm" style={{ color: "var(--muted)" }}>
-                {record.question.date}
+                {record.questionId}
               </span>
               <span
                 className="text-sm font-medium"

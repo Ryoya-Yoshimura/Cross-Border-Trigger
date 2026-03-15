@@ -1,0 +1,33 @@
+kind: 'AppStack'
+apiVersion: 'v1'
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  memory: '512Mi'
+env:
+  - variable: NEWS_API_KEY
+    availability: ['BUILD', 'RUNTIME']
+  - variable: GEMINI_API_KEY
+    availability: ['BUILD', 'RUNTIME']
+  - variable: GEMINI_MODEL
+    availability: ['BUILD', 'RUNTIME']
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    availability: ['BUILD', 'RUNTIME']
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    availability: ['BUILD', 'RUNTIME']
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    availability: ['BUILD', 'RUNTIME']
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    availability: ['BUILD', 'RUNTIME']
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    availability: ['BUILD', 'RUNTIME']
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    availability: ['BUILD', 'RUNTIME']
+  - variable: FIREBASE_PROJECT_ID
+    availability: ['RUNTIME']
+  - variable: FIREBASE_CLIENT_EMAIL
+    availability: ['RUNTIME']
+  - variable: FIREBASE_PRIVATE_KEY
+    availability: ['RUNTIME']
+  - variable: CRON_SECRET
+    availability: ['RUNTIME']

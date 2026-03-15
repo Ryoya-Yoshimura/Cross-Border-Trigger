@@ -2,7 +2,8 @@
 
 import { Suspense, useState } from "react";
 // useSearchParams requires Suspense boundary
-import { signIn } from "next-auth/react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -21,19 +22,15 @@ function LoginForm() {
     setError("");
     setLoading(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-
-    if (result?.error) {
-      setError("メールアドレスまたはパスワードが正しくありません");
-    } else {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       router.push(callbackUrl);
+    } catch (err: any) {
+      console.error(err);
+      setError("メールアドレスまたはパスワードが正しくありません");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (

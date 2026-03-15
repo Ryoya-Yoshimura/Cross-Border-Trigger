@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { adminDb } from "@/lib/firebase-admin";
 
-// 招待コードから招待者の情報を取得（認証不要）
+export const dynamic = "force-dynamic";
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params;
 
-  const user = await prisma.user.findUnique({
-    where: { inviteCode: code },
-    select: { name: true },
-  });
+  try {
+    const userSnap = await adminDb.collection("users").where("inviteCode", "==", code).limit(1).get();
+    if (userSnap.empty) {
+      return NextResponse.json({ error: "招待コードが見つかりません" }, { status: 404 });
+    }
 
-  if (!user) {
-    return NextResponse.json({ error: "招待コードが見つかりません" }, { status: 404 });
+    const userData = userSnap.docs[0].data();
+    return NextResponse.json({ name: userData.name });
+  } catch (e) {
+    console.error("[GET /api/invite/[code]]", e);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-
-  return NextResponse.json({ name: user.name });
 }

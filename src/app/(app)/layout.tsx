@@ -1,29 +1,47 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useAuth } from "@/lib/auth-context";
+import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
-import { prisma } from "@/lib/prisma";
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    redirect("/login");
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [dailyAnswered, setDailyAnswered] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    async function checkDailyAnswer() {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/questions", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setDailyAnswered(data.answered !== null);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    // 特定のページ遷移時や定期的にチェックする
+    checkDailyAnswer();
+  }, [user, pathname]);
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen text-sm text-muted">Loading...</div>;
   }
 
-  // 今日の回答済み判定（BottomNavバッジ用）
-  const today = process.env.DEBUG_DATE ?? new Date().toISOString().slice(0, 10);
-  const todayQuestion = await prisma.question.findUnique({ where: { date: today } });
-  const dailyAnswered = todayQuestion
-    ? !!(await prisma.answer.findUnique({
-        where: {
-          userId_questionId: {
-            userId: session.user.id,
-            questionId: todayQuestion.id,
-          },
-        },
-      }))
-    : false;
+  if (!user) return null;
 
   return (
     <>

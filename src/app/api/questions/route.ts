@@ -1,44 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+export const dynamic = "force-dynamic";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { checkAndCreateTrigger } from "@/lib/match";
 import { getOrCreateDailyQuestion, startBackgroundGeneration, isGenerating, regenerateDailyQuestion } from "@/lib/question-generator";
+
+async function getAuthenticatedUser(req: NextRequest) {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.split(" ")[1];
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    return decodedToken;
+  } catch (error) {
+    console.error("Auth error:", error);
+    return null;
+  }
+}
 
 function getToday() {
   return process.env.DEBUG_DATE ?? new Date().toISOString().slice(0, 10);
 }
 
-export async function GET(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "未認証" }, { status: 401 });
+export async function GET(req: NextRequest) {
+  // GitHub Actions 等からの自動実行用チェック
+  const authHeader = req.headers.get("Authorization");
+  const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+  const userToken = !isCron ? await getAuthenticatedUser(req) : null;
+  
+  if (!isCron && !userToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const today = getToday();
-    const question = await getOrCreateDailyQuestion(today);
-
-    // 質問が未生成の場合はバックグラウンド生成を開始してgenerating状態を返す
+    
+    // 1. 今日の質問を取得（または生成開始）
+    const question = (await getOrCreateDailyQuestion(today)) as any;
+    
     if (!question) {
       startBackgroundGeneration(today);
       return NextResponse.json({ question: null, generating: true, answered: null });
     }
 
-    const answer = await prisma.answer.findUnique({
-      where: { userId_questionId: { userId: session.user.id, questionId: question.id } },
-    });
+    // Cron実行の場合はここで終了（生成を確認・開始するのが目的なので）
+    if (isCron) {
+      return NextResponse.json({ message: "Question already exists or generation started" });
+    }
+
+    // 2. ユーザーの回答を取得
+    const userId = userToken!.uid;
+    const answerId = `${userId}_${today}`;
+    const answerDoc = await adminDb.collection("answers").doc(answerId).get();
 
     return NextResponse.json({
       question: {
-        id: question.id,
-        date: question.date,
-        sourceType: question.sourceType,
-        text: question.text,
-        choices: JSON.parse(question.choices),
+        ...question,
+        id: today,
+        choices: typeof question.choices === 'string' ? JSON.parse(question.choices) : question.choices,
       },
       generating: isGenerating(today),
-      answered: answer ? answer.choiceIndex : null,
+      answered: answerDoc.exists ? answerDoc.data()?.choiceIndex : null,
     });
   } catch (e) {
     console.error("[GET /api/questions]", e);
@@ -47,78 +69,77 @@ export async function GET(_req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "未認証" }, { status: 401 });
-  }
+  // ... (POST body remains same as previously updated)
+  const userToken = await getAuthenticatedUser(req);
+  if (!userToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { questionId, choiceIndex } = await req.json();
   if (choiceIndex === undefined || choiceIndex < 0 || choiceIndex > 3) {
     return NextResponse.json({ error: "無効な回答" }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user) {
-    return NextResponse.json({ error: "セッションが無効です。ログインし直してください。" }, { status: 401 });
-  }
-
-  const question = await prisma.question.findUnique({ where: { id: questionId } });
-  if (!question) {
-    return NextResponse.json({ error: "質問が見つかりません。ページを再読み込みしてください。" }, { status: 404 });
-  }
-
-  const existing = await prisma.answer.findUnique({
-    where: { userId_questionId: { userId: session.user.id, questionId } },
-  });
-  if (existing) {
-    return NextResponse.json({ error: "今日はすでに回答済みです" }, { status: 400 });
-  }
+  const userId = userToken.uid;
+  const answerId = `${userId}_${questionId}`;
 
   try {
-    const answer = await prisma.answer.create({
-      data: { userId: session.user.id, questionId, choiceIndex },
-    });
+    const answerRef = adminDb.collection("answers").doc(answerId);
+    const existing = await answerRef.get();
+    if (existing.exists) {
+      return NextResponse.json({ error: "今日はすでに回答済みです" }, { status: 400 });
+    }
 
-    const connections = await prisma.connection.findMany({
-      where: {
-        OR: [{ userId1: session.user.id }, { userId2: session.user.id }],
-      },
-    });
+    const answerData = {
+      userId,
+      questionId,
+      choiceIndex,
+      answeredAt: new Date().toISOString(),
+    };
+
+    await answerRef.set(answerData);
+
+    // つながっている相手との一致確認
+    const q1 = adminDb.collection("connections").where("userId1", "==", userId).get();
+    const q2 = adminDb.collection("connections").where("userId2", "==", userId).get();
+    const [snap1, snap2] = await Promise.all([q1, q2]);
+    const connections = [...snap1.docs, ...snap2.docs];
 
     for (const conn of connections) {
-      const partnerId = conn.userId1 === session.user.id ? conn.userId2 : conn.userId1;
-      const partnerAnswer = await prisma.answer.findUnique({
-        where: { userId_questionId: { userId: partnerId, questionId } },
-      });
+      const connData = conn.data();
+      const partnerId = connData.userId1 === userId ? connData.userId2 : connData.userId1;
+      
+      const partnerAnswerId = `${partnerId}_${questionId}`;
+      const partnerAnswerDoc = await adminDb.collection("answers").doc(partnerAnswerId).get();
 
-      if (partnerAnswer) {
-        const matched = partnerAnswer.choiceIndex === choiceIndex;
-        await prisma.matchRecord.upsert({
-          where: { connectionId_questionId: { connectionId: conn.id, questionId } },
-          create: { connectionId: conn.id, questionId, matched },
-          update: { matched },
+      if (partnerAnswerDoc.exists) {
+        const partnerChoice = partnerAnswerDoc.data()?.choiceIndex;
+        const matched = partnerChoice === choiceIndex;
+        
+        // MatchRecord を保存
+        const matchRecordId = `${conn.id}_${questionId}`;
+        await adminDb.collection("match_records").doc(matchRecordId).set({
+          connectionId: conn.id,
+          questionId,
+          matched,
+          checkedAt: new Date().toISOString(),
         });
 
+        // 一致した場合はトリガー発火チェック
         if (matched) {
           await checkAndCreateTrigger(conn.id);
         }
       }
     }
 
-    return NextResponse.json({ answer });
+    return NextResponse.json({ answer: answerData });
   } catch (e) {
     console.error("[POST /api/questions]", e);
     return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 });
   }
 }
 
-// 開発用: その日の質問を強制再生成する
-// POST /api/questions/regenerate 相当の機能を DELETE で提供
-export async function DELETE(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "未認証" }, { status: 401 });
-  }
+export async function DELETE(req: NextRequest) {
+  const userToken = await getAuthenticatedUser(req);
+  if (!userToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // 開発環境のみ許可
   if (process.env.NODE_ENV === "production") {

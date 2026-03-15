@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { adminDb } from "./firebase-admin";
 import { selectSourceType, type SourceType } from "./question-sources/selector";
 import { generateEvergreen, type QuestionSet } from "./question-sources/evergreen";
 import { generateTrend } from "./question-sources/trend";
@@ -10,7 +10,7 @@ const HARDCODED_FALLBACK: QuestionSet = {
     { label: "のんびりモード", imageUrl: "https://picsum.photos/seed/fallback1/400/300" },
     { label: "やる気あり", imageUrl: "https://picsum.photos/seed/fallback2/400/300" },
     { label: "ぼーっとしてる", imageUrl: "https://picsum.photos/seed/fallback3/400/300" },
-    { label: "ちょっと疲れ気味", imageUrl: "https://picsum.photos/seed/fallback4/400/300" },
+    { label: "ちょっと疲れ気気味", imageUrl: "https://picsum.photos/seed/fallback4/400/300" },
   ],
 };
 
@@ -50,18 +50,19 @@ const generatingDates = new Set<string>();
 
 /**
  * その日のニュースベース質問をDBから取得する。
- * - news ソースの質問があればそれを返す
- * - なければ（またはnews以外がキャッシュされていれば）null を返す
  */
 export async function getOrCreateDailyQuestion(date: string) {
-  const existing = await prisma.question.findUnique({ where: { date } });
+  const doc = await adminDb.collection("questions").doc(date).get();
 
-  // newsソースの質問がキャッシュ済みならそのまま返す
-  if (existing?.sourceType === "news") return existing;
-
-  // news以外がキャッシュされていれば削除（古いevergreen等を一掃）
-  if (existing) {
-    await prisma.question.deleteMany({ where: { date } });
+  if (doc.exists) {
+    const data = doc.data();
+    // newsソースの質問がキャッシュ済みならそのまま返す
+    if (data?.sourceType === "news") {
+      return { id: doc.id, ...data };
+    }
+    
+    // news以外がキャッシュされていれば削除（古いevergreen等を一掃）
+    await adminDb.collection("questions").doc(date).delete();
     console.log(`[generator] Deleted non-news cached question for ${date}, will regenerate`);
   }
 
@@ -70,7 +71,6 @@ export async function getOrCreateDailyQuestion(date: string) {
 
 /**
  * バックグラウンドでニュース質問を生成してDBに保存する。
- * 同じ日付の生成が進行中なら何もしない。
  */
 export function startBackgroundGeneration(date: string) {
   if (generatingDates.has(date)) return;
@@ -81,13 +81,12 @@ export function startBackgroundGeneration(date: string) {
 
   generateWithFallback(sourceType, date)
     .then((result) =>
-      prisma.question.create({
-        data: {
-          date,
-          sourceType: result.sourceType,
-          text: result.text,
-          choices: JSON.stringify(result.choices),
-        },
+      adminDb.collection("questions").doc(date).set({
+        date,
+        sourceType: result.sourceType,
+        text: result.text,
+        choices: JSON.stringify(result.choices),
+        createdAt: new Date().toISOString(),
       })
     )
     .then(() => console.log(`[generator] Background generation complete for ${date}`))
@@ -106,7 +105,7 @@ export function isGenerating(date: string) {
  * 開発・デバッグ用: その日の質問を強制再生成する。
  */
 export async function regenerateDailyQuestion(date: string) {
-  await prisma.question.deleteMany({ where: { date } });
+  await adminDb.collection("questions").doc(date).delete();
   generatingDates.delete(date);
   startBackgroundGeneration(date);
 }

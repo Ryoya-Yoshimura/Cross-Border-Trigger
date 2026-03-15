@@ -1,16 +1,29 @@
-import { getServerSession } from "next-auth";
-import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+async function getAuthenticatedUser(req: NextRequest) {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, name: true, bio: true, xUrl: true, lineUrl: true, instagramUrl: true, facebookUrl: true, threadsUrl: true },
-  });
+  const token = authHeader.split(" ")[1];
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    return decodedToken;
+  } catch (error) {
+    console.error("Auth error:", error);
+    return null;
+  }
+}
 
-  return NextResponse.json(user);
+export async function GET(req: NextRequest) {
+  const userToken = await getAuthenticatedUser(req);
+  if (!userToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const userDoc = await adminDb.collection("users").doc(userToken.uid).get();
+  if (!userDoc.exists) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  const userData = userDoc.data();
+  // idも含めて返す
+  return NextResponse.json({ id: userToken.uid, ...userData });
 }

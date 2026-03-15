@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
 
 type MatchItem = { date: string; label: string };
 
 function formatDate(isoDate: string): string {
-  const [, month, day] = isoDate.split("-");
+  const parts = isoDate.split("-");
+  if (parts.length < 3) return isoDate;
+  const [, month, day] = parts;
   return `${parseInt(month)}月${parseInt(day)}日`;
 }
 
@@ -21,6 +24,7 @@ type TriggerData = {
 };
 
 export default function TriggerDetailPage() {
+  const { user } = useAuth();
   const params = useParams();
   const router = useRouter();
   const [trigger, setTrigger] = useState<TriggerData | null>(null);
@@ -29,14 +33,23 @@ export default function TriggerDetailPage() {
   const [selectedMessage, setSelectedMessage] = useState(0);
 
   useEffect(() => {
-    fetch(`/api/trigger/${params.id}`)
-      .then((r) => r.json())
-      .then((data) => {
+    async function fetchTrigger() {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch(`/api/trigger/${params.id}`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
         setTrigger(data.trigger);
+      } catch (err) {
+        console.error(err);
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [params.id]);
+      }
+    }
+    fetchTrigger();
+  }, [params.id, user]);
 
   // matchContextを使ってサンプルメッセージを動的生成
   const getSampleMessages = (t: TriggerData): string[] => {

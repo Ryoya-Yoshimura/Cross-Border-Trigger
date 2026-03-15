@@ -1,8 +1,9 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 const SNS_META: { key: string; label: string; icon: string }[] = [
   { key: "xUrl",         label: "X",        icon: "𝕏" },
@@ -12,40 +13,44 @@ const SNS_META: { key: string; label: string; icon: string }[] = [
   { key: "threadsUrl",   label: "Threads",  icon: "🧵" },
 ];
 
-export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+export default function ProfilePage() {
+  const { user: currentUser } = useAuth();
+  const params = useParams();
+  const router = useRouter();
+  const [targetUser, setTargetUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: { id: true, name: true, bio: true, xUrl: true, lineUrl: true, instagramUrl: true, facebookUrl: true, threadsUrl: true, answers: { select: { id: true } } },
-  });
-  if (!user) notFound();
+  useEffect(() => {
+    async function fetchProfile() {
+      if (!currentUser) return;
+      try {
+        const token = await currentUser.getIdToken();
+        const res = await fetch(`/api/profile/${params.id}`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setTargetUser(data.user);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchProfile();
+  }, [params.id, currentUser]);
 
-  const isOwn = user.id === session.user.id;
+  if (loading || !currentUser) return <div className="p-8 text-center text-sm text-muted">読み込み中...</div>;
+  if (!targetUser) return <div className="p-8 text-center text-sm text-muted">ユーザーが見つかりません</div>;
 
-  const answerCount = user.answers.length;
-
-  // 一致した日（自分との接続に限定）
-  const matchCount = await prisma.matchRecord.count({
-    where: {
-      matched: true,
-      connection: {
-        OR: [
-          { userId1: session.user.id, userId2: user.id },
-          { userId1: user.id, userId2: session.user.id },
-        ],
-      },
-    },
-  });
-
-  const avatarChar = user.name.slice(0, 1);
+  const isOwn = targetUser.id === currentUser.uid;
+  const avatarChar = targetUser.name?.slice(0, 1) ?? "?";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/home" className="text-sm" style={{ color: "var(--muted)" }}>← 戻る</Link>
+        <button onClick={() => router.back()} className="text-sm" style={{ color: "var(--muted)" }}>← 戻る</button>
         {isOwn && (
           <Link href="/profile/edit" className="ml-auto text-sm font-medium" style={{ color: "var(--accent)" }}>
             編集
@@ -64,9 +69,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         >
           {avatarChar}
         </div>
-        <p className="font-bold text-xl">{user.name}</p>
-        {user.bio && (
-          <p className="text-sm" style={{ color: "var(--muted)" }}>一言：{user.bio}</p>
+        <p className="font-bold text-xl">{targetUser.name}</p>
+        {targetUser.bio && (
+          <p className="text-sm" style={{ color: "var(--muted)" }}>一言：{targetUser.bio}</p>
         )}
       </div>
 
@@ -77,7 +82,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       >
         <div className="grid grid-cols-2 gap-2">
           {SNS_META.map(({ key, label, icon }) => {
-            const url = user[key as keyof typeof user] as string | null;
+            const url = targetUser[key];
             return (
               <div key={key} className="flex items-center gap-2 text-sm">
                 <span>{icon}</span>
@@ -104,18 +109,18 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         {isOwn ? (
           <>
             <div>
-              <p className="text-2xl font-bold" style={{ color: "var(--accent)" }}>{answerCount}</p>
+              <p className="text-2xl font-bold" style={{ color: "var(--accent)" }}>{targetUser.answerCount}</p>
               <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>回答した日</p>
             </div>
           </>
         ) : (
           <>
             <div>
-              <p className="text-2xl font-bold" style={{ color: "var(--accent)" }}>{matchCount}</p>
+              <p className="text-2xl font-bold" style={{ color: "var(--accent)" }}>{targetUser.matchCount}</p>
               <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>一致した日</p>
             </div>
             <div>
-              <p className="text-2xl font-bold" style={{ color: "var(--accent)" }}>{answerCount}</p>
+              <p className="text-2xl font-bold" style={{ color: "var(--accent)" }}>{targetUser.answerCount}</p>
               <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>回答した日</p>
             </div>
           </>

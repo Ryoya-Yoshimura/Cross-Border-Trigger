@@ -6,32 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "seed": "npx tsx prisma/seed.ts",
-    "demo:day1": "DEMO_DAY=1 npx tsx prisma/demo-seed.ts",
-    "demo:day2": "DEMO_DAY=2 npx tsx prisma/demo-seed.ts",
-    "demo:day3": "DEMO_DAY=3 npx tsx prisma/demo-seed.ts",
-    "demo:day4": "DEMO_DAY=4 npx tsx prisma/demo-seed.ts"
-  },
-  "prisma": {
-    "seed": "npx tsx prisma/seed.ts"
+    "lint": "eslint"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@huggingface/transformers": "^3.8.1",
-    "@prisma/client": "^5.22.0",
-    "@types/bcryptjs": "^2.4.6",
-    "bcryptjs": "^3.0.3",
+    "firebase": "^12.10.0",
+    "firebase-admin": "^13.7.0",
     "next": "16.1.6",
-    "next-auth": "^4.24.13",
-    "prisma": "^5.22.0",
     "qrcode.react": "^4.2.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^20.19.37",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

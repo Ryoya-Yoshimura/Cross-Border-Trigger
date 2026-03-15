@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
 
 export default function InviteLandingPage() {
   const params = useParams();
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { user, loading: authLoading } = useAuth();
   const code = params.code as string;
 
   const [inviterName, setInviterName] = useState<string | null>(null);
@@ -29,30 +29,40 @@ export default function InviteLandingPage() {
   }, [code]);
 
   const handleConnect = async () => {
+    if (!user) return;
     setConnecting(true);
     setError("");
 
-    const res = await fetch("/api/invite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inviteCode: code }),
-    });
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/invite", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ inviteCode: code }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (res.ok) {
-      setConnected(true);
-      setTimeout(() => router.push("/home"), 2200);
-    } else if (data.error === "すでにつながっています") {
-      setAlreadyConnected(true);
-    } else {
-      setError(data.error || "エラーが発生しました");
+      if (res.ok) {
+        setConnected(true);
+        setTimeout(() => router.push("/home"), 2200);
+      } else if (data.error === "すでにつながっています") {
+        setAlreadyConnected(true);
+      } else {
+        setError(data.error || "エラーが発生しました");
+      }
+    } catch (err) {
+      setError("通信エラーが発生しました");
+    } finally {
+      setConnecting(false);
     }
-    setConnecting(false);
   };
 
   // セッション or 招待者情報 読み込み中
-  if (status === "loading" || (!inviterName && !notFound)) {
+  if (authLoading || (!inviterName && !notFound)) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--background)" }}>
         <p className="text-sm" style={{ color: "var(--muted)" }}>読み込み中...</p>
@@ -144,7 +154,7 @@ export default function InviteLandingPage() {
               </p>
             </div>
 
-            {session ? (
+            {user ? (
               /* ログイン済み → 即接続 */
               <>
                 <button
@@ -163,7 +173,7 @@ export default function InviteLandingPage() {
                   <p className="text-sm text-red-500 text-center mt-2">{error}</p>
                 )}
                 <p className="text-xs text-center mt-2" style={{ color: "var(--muted)" }}>
-                  {session.user?.name} としてログイン中
+                  {user.displayName} としてログイン中
                 </p>
               </>
             ) : (

@@ -1,20 +1,37 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 
 export default function InvitePage() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const [inviteCode, setInviteCodeInput] = useState("");
   const [result, setResult] = useState<{ success?: string; error?: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shareError, setShareError] = useState("");
+  const [myInviteCode, setMyInviteCode] = useState("読み込み中...");
 
-  const myInviteCode = session?.user?.inviteCode ?? "読み込み中...";
+  useEffect(() => {
+    async function fetchMyProfile() {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/profile/me", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setMyInviteCode(data.inviteCode);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    fetchMyProfile();
+  }, [user]);
+
   const inviteUrl =
-    typeof window !== "undefined"
+    typeof window !== "undefined" && myInviteCode !== "読み込み中..."
       ? `${window.location.origin}/invite/${myInviteCode}`
       : "";
 
@@ -23,7 +40,7 @@ export default function InvitePage() {
     setShareError("");
     const shareData = {
       title: "Cross Borderに参加しませんか？",
-      text: `${session?.user?.name ?? "友達"} さんから招待が届いています！毎日の4択で気が合うか確かめてみよう。`,
+      text: `${user?.displayName ?? "友達"} さんから招待が届いています！毎日の4択で気が合うか確かめてみよう。`,
       url: inviteUrl,
     };
 
@@ -49,22 +66,31 @@ export default function InvitePage() {
 
   const handleConnect = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!user) return;
     setResult(null);
     setLoading(true);
 
-    const res = await fetch("/api/invite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inviteCode }),
-    });
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/invite", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ inviteCode }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (res.ok) {
-      setResult({ success: `${data.connection.partner.name} さんとつながりました！` });
-      setInviteCodeInput("");
-    } else {
-      setResult({ error: data.error });
+      if (res.ok) {
+        setResult({ success: `${data.connection.partner.name} さんとつながりました！` });
+        setInviteCodeInput("");
+      } else {
+        setResult({ error: data.error });
+      }
+    } catch (err) {
+      setResult({ error: "通信エラーが発生しました" });
     }
 
     setLoading(false);

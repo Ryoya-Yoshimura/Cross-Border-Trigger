@@ -1,53 +1,58 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
 
-export default async function HomePage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+export default function HomePage() {
+  const { user } = useAuth();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const userId = session.user.id;
-  const today = process.env.DEBUG_DATE ?? new Date().toISOString().slice(0, 10);
+  useEffect(() => {
+    async function fetchData() {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        
+        // 1. プロフィール (me)
+        const profileRes = await fetch("/api/profile/me", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const profile = await profileRes.json();
 
-  // 今日の問題と回答状況
-  const todayQuestion = await prisma.question.findUnique({ where: { date: today } });
-  const todayAnswer = todayQuestion
-    ? await prisma.answer.findUnique({
-        where: { userId_questionId: { userId, questionId: todayQuestion.id } },
-      })
-    : null;
+        // 2. 質問
+        const questionRes = await fetch("/api/questions", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const questionData = await questionRes.json();
 
-  // つながり（未読トリガーと総数だけ取得）
-  const connections = await prisma.connection.findMany({
-    where: { OR: [{ userId1: userId }, { userId2: userId }] },
-    include: {
-      user1: { select: { id: true, name: true } },
-      user2: { select: { id: true, name: true } },
-      triggers: {
-        where: { isViewed: false },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+        // 3. つながり
+        const connectionsRes = await fetch("/api/connections", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const connectionsData = await connectionsRes.json();
 
-  const totalConnections = connections.length;
+        setData({
+          profile,
+          question: questionData,
+          connections: connectionsData.connections,
+        });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [user]);
 
-  // 自分のプロフィール
-  const me = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { bio: true, xUrl: true, lineUrl: true, instagramUrl: true, facebookUrl: true, threadsUrl: true },
-  });
+  if (loading || !user) {
+    return <div className="p-8 text-center text-sm text-muted">読み込み中...</div>;
+  }
 
-  const unviewedTriggers = connections
-    .filter((c) => c.triggers.length > 0)
-    .map((c) => ({
-      id: c.id,
-      partner: c.userId1 === userId ? c.user2 : c.user1,
-      trigger: c.triggers[0],
-    }));
+  const { profile, question, connections } = data || {};
+  const unviewedTriggers = connections?.filter((c: any) => c.latestTrigger && !c.latestTrigger.isViewed) || [];
 
   return (
     <div className="space-y-6">
@@ -56,17 +61,17 @@ export default async function HomePage() {
         className="rounded-2xl p-4 flex items-center gap-4"
         style={{ background: "white", border: "1.5px solid var(--border)" }}
       >
-        <Link href={`/profile/${userId}`} className="flex items-center gap-4 flex-1 min-w-0">
+        <Link href={`/profile/${user.uid}`} className="flex items-center gap-4 flex-1 min-w-0">
           <div
             className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold text-white shrink-0"
             style={{ background: "var(--primary)" }}
           >
-            {session.user.name?.slice(0, 1) ?? "?"}
+            {user.displayName?.slice(0, 1) ?? "?"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-sm">{session.user.name}</p>
-            {me?.bio ? (
-              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>{me.bio}</p>
+            <p className="font-bold text-sm">{user.displayName}</p>
+            {profile?.bio ? (
+              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>{profile.bio}</p>
             ) : (
               <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>一言を追加する</p>
             )}
@@ -83,7 +88,7 @@ export default async function HomePage() {
         style={{ background: "linear-gradient(135deg, var(--primary-light), var(--accent-light))" }}
       >
         <p className="text-sm" style={{ color: "var(--muted)" }}>おかえり、</p>
-        <h1 className="text-xl font-bold mt-0.5">{session.user.name} さん</h1>
+        <h1 className="text-xl font-bold mt-0.5">{user.displayName} さん</h1>
         <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
           今日も誰かとつながるきっかけを見つけましょう
         </p>
@@ -94,7 +99,7 @@ export default async function HomePage() {
         <h2 className="font-semibold text-sm mb-2" style={{ color: "var(--muted)" }}>
           今日の質問
         </h2>
-        {todayAnswer !== null ? (
+        {question?.answered !== null ? (
           <div
             className="rounded-2xl p-4 flex items-center gap-3"
             style={{ background: "white", border: "1.5px solid var(--border)" }}
@@ -122,15 +127,15 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* 再接続トリガー（4日一致後にのみ表示） */}
+      {/* 再接続トリガー */}
       {unviewedTriggers.length > 0 && (
         <section>
           <h2 className="font-semibold text-sm mb-2" style={{ color: "var(--muted)" }}>
             🔔 再接続のきっかけ
           </h2>
           <div className="space-y-2">
-            {unviewedTriggers.map((t) => (
-              <Link key={t.id} href={`/trigger/${t.trigger.id}`}>
+            {unviewedTriggers.map((t: any) => (
+              <Link key={t.id} href={`/trigger/${t.latestTrigger.id}`}>
                 <div
                   className="rounded-2xl p-4"
                   style={{
@@ -143,7 +148,7 @@ export default async function HomePage() {
                     {t.partner.name} さんとの接点が見つかりました！
                   </p>
                   <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
-                    {t.trigger.message}
+                    {t.latestTrigger.message}
                   </p>
                   <p className="text-xs mt-2 font-medium" style={{ color: "var(--accent)" }}>
                     推奨メッセージを見る →
@@ -155,8 +160,8 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* 待機中メッセージ（つながりはあるがトリガー未発火） */}
-      {totalConnections > 0 && unviewedTriggers.length === 0 && (
+      {/* 待機中メッセージ */}
+      {connections?.length > 0 && unviewedTriggers.length === 0 && (
         <section>
           <div
             className="rounded-2xl p-5 text-center"
@@ -172,7 +177,7 @@ export default async function HomePage() {
       )}
 
       {/* つながりがゼロの場合 */}
-      {totalConnections === 0 && (
+      {connections?.length === 0 && (
         <section>
           <div
             className="rounded-2xl p-5 text-center"

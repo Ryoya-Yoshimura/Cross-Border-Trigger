@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ユーザープロフィール: ログイン済みなら誰でも見れるが、編集は本人のみ
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 接続（Connection）: 参加している2人のみ閲覧可能。作成・更新は API (Admin SDK) 経由
+    match /connections/{connectionId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.userId1 || 
+        request.auth.uid == resource.data.userId2
+      );
+      allow write: if false;
+    }
+
+    // 質問（Question）: ログイン済みなら閲覧可能。作成は Admin 経由
+    match /questions/{questionId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 回答（Answer）: 自分の回答のみ閲覧・作成可能
+    match /answers/{answerId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if false;
+    }
+
+    // 一致記録（MatchRecord）: 該当する接続に参加しているユーザーのみ閲覧可能
+    match /match_records/{matchId} {
+      allow read: if request.auth != null && 
+        (get(/databases/$(database)/documents/connections/$(resource.data.connectionId)).data.userId1 == request.auth.uid ||
+         get(/databases/$(database)/documents/connections/$(resource.data.connectionId)).data.userId2 == request.auth.uid);
+      allow write: if false;
+    }
+
+    // トリガー（Trigger）: 該当する接続に参加しているユーザーのみ閲覧・既読更新可能
+    match /triggers/{triggerId} {
+      allow read: if request.auth != null && 
+        (get(/databases/$(database)/documents/connections/$(resource.data.connectionId)).data.userId1 == request.auth.uid ||
+         get(/databases/$(database)/documents/connections/$(resource.data.connectionId)).data.userId2 == request.auth.uid);
+      
+      // isViewed の更新のみ許可
+      allow update: if request.auth != null && 
+        (get(/databases/$(database)/documents/connections/$(resource.data.connectionId)).data.userId1 == request.auth.uid ||
+         get(/databases/$(database)/documents/connections/$(resource.data.connectionId)).data.userId2 == request.auth.uid) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isViewed']);
+        
+      allow create, delete: if false;
+    }
+  }
+}

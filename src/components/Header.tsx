@@ -1,12 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
 
 export function Header() {
-  const { data: session } = useSession();
+  const { user, logout } = useAuth();
+  const router = useRouter();
 
-  if (!session) return null;
+  if (!user) return null;
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/login");
+  };
 
   return (
     <header
@@ -18,7 +25,7 @@ export function Header() {
           🌉 Cross Border
         </Link>
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={handleLogout}
           className="text-xs px-3 py-1.5 rounded-lg"
           style={{ color: "var(--muted)", border: "1px solid var(--border)" }}
         >

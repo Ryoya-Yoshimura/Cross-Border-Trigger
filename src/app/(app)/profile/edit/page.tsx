@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -14,7 +14,7 @@ type ProfileForm = {
 };
 
 export default function ProfileEditPage() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const router = useRouter();
   const [form, setForm] = useState<ProfileForm>({
     bio: "", xUrl: "", lineUrl: "", instagramUrl: "", facebookUrl: "", threadsUrl: "",
@@ -22,7 +22,13 @@ export default function ProfileEditPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/profile/me").then((r) => r.json()).then((data) => {
+    async function fetchProfile() {
+      if (!user) return;
+      const token = await user.getIdToken();
+      const r = await fetch("/api/profile/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await r.json();
       if (!data) return;
       setForm({
         bio: data.bio ?? "",
@@ -32,12 +38,22 @@ export default function ProfileEditPage() {
         facebookUrl: data.facebookUrl ?? "",
         threadsUrl: data.threadsUrl ?? "",
       });
-    });
-  }, []);
+    }
+    fetchProfile();
+  }, [user]);
 
   async function handleSave() {
+    if (!user) return;
     setSaving(true);
-    const res = await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const token = await user.getIdToken();
+    const res = await fetch("/api/profile", { 
+      method: "PATCH", 
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }, 
+      body: JSON.stringify(form) 
+    });
     const data = await res.json();
     console.log("[profile save]", res.status, data);
     setSaving(false);
@@ -70,9 +86,9 @@ export default function ProfileEditPage() {
           className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white"
           style={{ background: "var(--primary)" }}
         >
-          {session?.user?.name?.slice(0, 1) ?? "?"}
+          {user?.displayName?.slice(0, 1) ?? "?"}
         </div>
-        <p className="font-semibold">{session?.user?.name}</p>
+        <p className="font-semibold">{user?.displayName}</p>
       </div>
 
       {/* 一言 */}

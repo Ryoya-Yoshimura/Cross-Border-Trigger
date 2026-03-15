@@ -1,90 +1,47 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
 
-export default async function ConnectionsPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+export default function ConnectionsPage() {
+  const { user } = useAuth();
+  const [connections, setConnections] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const userId = session.user.id;
-
-  const connections = await prisma.connection.findMany({
-    where: {
-      OR: [{ userId1: userId }, { userId2: userId }],
-    },
-    include: {
-      user1: { select: { id: true, name: true } },
-      user2: { select: { id: true, name: true } },
-      matchRecords: {
-        orderBy: { checkedAt: "desc" },
-        take: 30,
-        include: { question: { select: { date: true } } },
-      },
-      triggers: {
-        where: { isViewed: false },
-        take: 1,
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const today = process.env.DEBUG_DATE ?? new Date().toISOString().slice(0, 10);
-
-  const summaries = connections.map((conn) => {
-    const partner = conn.userId1 === userId ? conn.user2 : conn.user1;
-
-    // 日付の降順ソート
-    const dates = conn.matchRecords
-      .map((m) => m.question.date)
-      .sort()
-      .reverse();
-
-    // 連続回答日数（今日 or 昨日から連続しているか）
-    let consecutiveAnswerDays = 0;
-    let expected = today;
-    // 今日記録がなければ昨日から数える
-    if (dates[0] && dates[0] < today) {
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      expected = yesterday.toISOString().slice(0, 10);
-    }
-    for (const date of dates) {
-      if (date === expected) {
-        consecutiveAnswerDays++;
-        const d = new Date(expected);
-        d.setDate(d.getDate() - 1);
-        expected = d.toISOString().slice(0, 10);
-      } else {
-        break;
+  useEffect(() => {
+    async function fetchConnections() {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/connections", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setConnections(data.connections || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
     }
+    fetchConnections();
+  }, [user]);
 
-    // 最終回答からの経過日数
-    const lastDate = dates[0];
-    const daysSinceLast = lastDate
-      ? Math.floor((new Date(today).getTime() - new Date(lastDate).getTime()) / 86400000)
-      : null;
-
-    return {
-      id: conn.id,
-      partner,
-      consecutiveAnswerDays,
-      daysSinceLast,
-      hasTrigger: conn.triggers.length > 0,
-    };
-  });
+  if (loading || !user) {
+    return <div className="p-8 text-center text-sm text-muted">読み込み中...</div>;
+  }
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-bold">つながり一覧</h1>
         <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-          {summaries.length}人とつながっています
+          {connections.length}人とつながっています
         </p>
       </div>
 
-      {summaries.length === 0 ? (
+      {connections.length === 0 ? (
         <div
           className="rounded-2xl p-8 text-center"
           style={{ background: "white", border: "1.5px dashed var(--border)" }}
@@ -105,7 +62,7 @@ export default async function ConnectionsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {summaries.map((s) => (
+          {connections.map((s) => (
             <div
               key={s.id}
               className="rounded-2xl p-4 flex items-center gap-4"
@@ -125,7 +82,7 @@ export default async function ConnectionsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold">{s.partner.name}</p>
-                    {s.hasTrigger && (
+                    {s.latestTrigger && !s.latestTrigger.isViewed && (
                       <span
                         className="text-xs px-1.5 py-0.5 rounded-full font-medium"
                         style={{ background: "var(--primary-light)", color: "var(--primary)" }}
@@ -135,17 +92,14 @@ export default async function ConnectionsPage() {
                     )}
                   </div>
                   <div className="flex gap-3 mt-1">
-                    {s.consecutiveAnswerDays > 0 && (
+                    {s.consecutiveMatches > 0 && (
                       <span className="text-xs font-medium" style={{ color: "var(--primary)" }}>
-                        🔥 {s.consecutiveAnswerDays}日連続回答中
+                        🔥 {s.consecutiveMatches}日連続一致中
                       </span>
                     )}
-                    {s.daysSinceLast === null && (
-                      <span className="text-xs" style={{ color: "var(--muted)" }}>まだ回答なし</span>
-                    )}
-                    {s.daysSinceLast !== null && s.consecutiveAnswerDays === 0 && (
+                    {s.matchCount > 0 && (
                       <span className="text-xs" style={{ color: "var(--muted)" }}>
-                        最終回答 {s.daysSinceLast === 0 ? "今日" : `${s.daysSinceLast}日前`}
+                        通算一致: {s.matchCount}回
                       </span>
                     )}
                   </div>

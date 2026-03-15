@@ -1,0 +1,16 @@
+name: Daily Question Generation
+
+on:
+  schedule:
+    # 毎日 日本時間 0:05 (UTC 15:05) に実行
+    - cron: '5 15 * * *'
+  workflow_dispatch: # 手動実行も可能にする
+
+jobs:
+  trigger-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Questions API
+        run: |
+          curl -X GET "${{ secrets.APP_URL }}/api/questions" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

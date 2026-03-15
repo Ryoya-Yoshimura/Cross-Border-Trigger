@@ -1,7 +1,8 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -21,35 +22,37 @@ function RegisterForm() {
     setLoading(true);
 
     try {
+      // 1. Firebase Auth でユーザー作成
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // 2. プロフィール（表示名）の設定
+      await updateProfile(userCredential.user, { displayName: name });
+
+      // 3. バックエンド（Firestore用）のユーザー情報登録
       const res = await fetch("/api/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${await userCredential.user.getIdToken()}`
+        },
+        body: JSON.stringify({ name, email }),
       });
 
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
-
       if (!res.ok) {
-        setError(data.error || "登録に失敗しました");
+        const data = await res.json();
+        setError(data.error || "初期設定に失敗しました");
         return;
       }
 
-      // 登録後すぐにログイン
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError("ログインに失敗しました。ログインページからお試しください。");
+      // 招待コードがあれば招待ページへ、なければホームへ
+      router.push(inviteCode ? `/invite/${inviteCode}` : "/home");
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === "auth/email-already-in-use") {
+        setError("このメールアドレスは既に使われています");
       } else {
-        // 招待コードがあれば招待ページへ、なければホームへ
-        router.push(inviteCode ? `/invite/${inviteCode}` : "/home");
+        setError("登録に失敗しました。もう一度お試しください。");
       }
-    } catch {
-      setError("通信エラーが発生しました。もう一度お試しください。");
     } finally {
       setLoading(false);
     }

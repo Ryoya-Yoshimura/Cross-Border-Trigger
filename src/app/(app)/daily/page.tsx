@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 type Choice = { label: string; imageUrl?: string; subtext?: string; emoji?: string; gradient?: string };
 type Question = { id: string; date: string; sourceType?: string; text: string; choices: Choice[] };
 
 export default function DailyPage() {
+  const { user } = useAuth();
   const router = useRouter();
   const [question, setQuestion] = useState<Question | null>(null);
   const [answered, setAnswered] = useState<number | null>(null);
@@ -17,28 +19,37 @@ export default function DailyPage() {
   const [error, setError] = useState("");
   const [poppingIndex, setPoppingIndex] = useState<number | null>(null);
 
-  const fetchQuestion = () => {
-    fetch("/api/questions")
-      .then((r) => r.json())
-      .then((data) => {
-        setQuestion(data.question);
-        setGenerating(data.generating ?? false);
-        setAnswered(data.answered);
-        if (data.answered !== null) setSelected(data.answered);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const fetchQuestion = async () => {
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/questions", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setQuestion(data.question);
+      setGenerating(data.generating ?? false);
+      setAnswered(data.answered);
+      if (data.answered !== null) setSelected(data.answered);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchQuestion();
-  }, []);
+    if (user) fetchQuestion();
+  }, [user]);
 
   // 生成中は5秒ごとにポーリング
   useEffect(() => {
-    if (!generating) return;
-    const timer = setInterval(() => {
-      fetch("/api/questions")
+    if (!generating || !user) return;
+    const timer = setInterval(async () => {
+      const token = await user.getIdToken();
+      fetch("/api/questions", {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
         .then((r) => r.json())
         .then((data) => {
           if (data.question) {
@@ -49,7 +60,7 @@ export default function DailyPage() {
         });
     }, 5000);
     return () => clearInterval(timer);
-  }, [generating]);
+  }, [generating, user]);
 
   const handleSelect = (index: number) => {
     if (answered !== null) return;
@@ -59,23 +70,32 @@ export default function DailyPage() {
   };
 
   const handleSubmit = async () => {
-    if (selected === null || !question) return;
+    if (selected === null || !question || !user) return;
     setSubmitting(true);
     setError("");
 
-    const res = await fetch("/api/questions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questionId: question.id, choiceIndex: selected }),
-    });
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/questions", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ questionId: question.id, choiceIndex: selected }),
+      });
 
-    const data = await res.json();
-    if (res.ok) {
-      setAnswered(selected);
-    } else {
-      setError(data.error || "送信に失敗しました");
+      const data = await res.json();
+      if (res.ok) {
+        setAnswered(selected);
+      } else {
+        setError(data.error || "送信に失敗しました");
+      }
+    } catch (err) {
+      setError("通信エラーが発生しました");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   if (loading) {
