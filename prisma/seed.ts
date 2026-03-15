@@ -17,10 +17,10 @@ async function main() {
   const hash = await bcrypt.hash("password123", 10);
 
   const user1 = await prisma.user.create({
-    data: { name: "田中 花子", email: "hanako@example.com", passwordHash: hash },
+    data: { name: "田中 花子", email: "hanako@example.com", passwordHash: hash, inviteCode: "HANA-K001" },
   });
   const user2 = await prisma.user.create({
-    data: { name: "佐藤 太郎", email: "taro@example.com", passwordHash: hash },
+    data: { name: "佐藤 太郎", email: "taro@example.com", passwordHash: hash, inviteCode: "TARO-K001" },
   });
 
   const connection = await prisma.connection.create({

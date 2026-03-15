@@ -103,10 +103,10 @@ export default function InvitePage() {
 
           {/* 招待コード表示 */}
           <div
-            className="rounded-xl p-3 text-center font-mono text-sm font-bold tracking-wider mb-4 break-all"
+            className="rounded-xl p-3 text-center font-mono text-2xl font-bold tracking-widest mb-4"
             style={{ background: "var(--background)", color: "var(--primary)" }}
           >
-            {inviteUrl || myInviteCode}
+            {myInviteCode}
           </div>
 
           {/* シェアボタン群 */}
