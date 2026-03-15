@@ -16,6 +16,12 @@ model User {
   email        String   @unique
   passwordHash String
   inviteCode   String   @unique @default(cuid())
+  bio          String?
+  xUrl         String?
+  lineUrl      String?
+  instagramUrl String?
+  facebookUrl  String?
+  threadsUrl   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -42,10 +48,13 @@ model Connection {
 
 // 毎日の4択問題
 model Question {
-  id        String   @id @default(cuid())
-  date      String   @unique // "YYYY-MM-DD" 形式
-  choices   String   // JSON: [{label: string, imageUrl: string}]
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  date           String   @unique // "YYYY-MM-DD" 形式
+  sourceType     String   @default("evergreen") // "evergreen" | "trend" | "news"
+  text           String   @default("")           // 質問文
+  choices        String   // JSON: [{label, imageUrl, subtext?}]
+  sourceMetadata String?  // JSON: ニュース記事など生成元情報
+  createdAt      DateTime @default(now())
 
   answers      Answer[]
   matchRecords MatchRecord[]

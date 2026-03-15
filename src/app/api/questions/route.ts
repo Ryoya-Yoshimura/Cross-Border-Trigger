@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { checkAndCreateTrigger } from "@/lib/match";
+import { getOrCreateDailyQuestion, startBackgroundGeneration, isGenerating, regenerateDailyQuestion } from "@/lib/question-generator";
 
 function getToday() {
   return process.env.DEBUG_DATE ?? new Date().toISOString().slice(0, 10);
@@ -14,32 +15,35 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: "未認証" }, { status: 401 });
   }
 
-  const today = getToday();
-  const set = getDailySet(today);
+  try {
+    const today = getToday();
+    const question = await getOrCreateDailyQuestion(today);
 
-  let question = await prisma.question.findUnique({ where: { date: today } });
+    // 質問が未生成の場合はバックグラウンド生成を開始してgenerating状態を返す
+    if (!question) {
+      startBackgroundGeneration(today);
+      return NextResponse.json({ question: null, generating: true, answered: null });
+    }
 
-  if (!question) {
-    question = await prisma.question.create({
-      data: {
-        date: today,
-        choices: JSON.stringify(set.choices),
-      },
+    const answer = await prisma.answer.findUnique({
+      where: { userId_questionId: { userId: session.user.id, questionId: question.id } },
     });
+
+    return NextResponse.json({
+      question: {
+        id: question.id,
+        date: question.date,
+        sourceType: question.sourceType,
+        text: question.text,
+        choices: JSON.parse(question.choices),
+      },
+      generating: isGenerating(today),
+      answered: answer ? answer.choiceIndex : null,
+    });
+  } catch (e) {
+    console.error("[GET /api/questions]", e);
+    return NextResponse.json({ error: "質問の取得に失敗しました" }, { status: 500 });
   }
-
-  const answer = await prisma.answer.findUnique({
-    where: { userId_questionId: { userId: session.user.id, questionId: question.id } },
-  });
-
-  return NextResponse.json({
-    question: {
-      ...question,
-      text: set.text,
-      choices: JSON.parse(question.choices),
-    },
-    answered: answer ? answer.choiceIndex : null,
-  });
 }
 
 export async function POST(req: NextRequest) {
@@ -51,6 +55,16 @@ export async function POST(req: NextRequest) {
   const { questionId, choiceIndex } = await req.json();
   if (choiceIndex === undefined || choiceIndex < 0 || choiceIndex > 3) {
     return NextResponse.json({ error: "無効な回答" }, { status: 400 });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+  if (!user) {
+    return NextResponse.json({ error: "セッションが無効です。ログインし直してください。" }, { status: 401 });
+  }
+
+  const question = await prisma.question.findUnique({ where: { id: questionId } });
+  if (!question) {
+    return NextResponse.json({ error: "質問が見つかりません。ページを再読み込みしてください。" }, { status: 404 });
   }
 
   const existing = await prisma.answer.findUnique({
@@ -98,78 +112,20 @@ export async function POST(req: NextRequest) {
   }
 }
 
-type QuestionSet = {
-  text: string;
-  choices: { label: string; imageUrl: string }[];
-};
+// 開発用: その日の質問を強制再生成する
+// POST /api/questions/regenerate 相当の機能を DELETE で提供
+export async function DELETE(_req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "未認証" }, { status: 401 });
+  }
 
-function getDailySet(date: string): QuestionSet {
-  const SETS: QuestionSet[] = [
-    {
-      text: "今朝の気分、飲み物で表すと？",
-      choices: [
-        { label: "珈琲", imageUrl: "https://picsum.photos/seed/coffeecup/400/300" },
-        { label: "紅茶", imageUrl: "https://picsum.photos/seed/greentea/400/300" },
-        { label: "スムージー", imageUrl: "https://picsum.photos/seed/smoothiedrink/400/300" },
-        { label: "お水だけ", imageUrl: "https://picsum.photos/seed/mineralwater/400/300" },
-      ],
-    },
-    {
-      text: "週末に行くなら、どの景色？",
-      choices: [
-        { label: "山", imageUrl: "https://picsum.photos/seed/mountainview/400/300" },
-        { label: "海", imageUrl: "https://picsum.photos/seed/oceanbeach/400/300" },
-        { label: "街の夜景", imageUrl: "https://picsum.photos/seed/citynightview/400/300" },
-        { label: "森の小道", imageUrl: "https://picsum.photos/seed/forestpath/400/300" },
-      ],
-    },
-    {
-      text: "理想の休日の過ごし方は？",
-      choices: [
-        { label: "ひとりでゆっくり", imageUrl: "https://picsum.photos/seed/solorelax/400/300" },
-        { label: "友達とわいわい", imageUrl: "https://picsum.photos/seed/friendsfun/400/300" },
-        { label: "家族でのんびり", imageUrl: "https://picsum.photos/seed/familytime/400/300" },
-        { label: "新しい場所を探索", imageUrl: "https://picsum.photos/seed/adventuretrip/400/300" },
-      ],
-    },
-    {
-      text: "リラックスするなら、どれ？",
-      choices: [
-        { label: "読書", imageUrl: "https://picsum.photos/seed/readingbook/400/300" },
-        { label: "映画・ドラマ", imageUrl: "https://picsum.photos/seed/movienight/400/300" },
-        { label: "音楽を聴く", imageUrl: "https://picsum.photos/seed/musicvibes/400/300" },
-        { label: "アウトドア", imageUrl: "https://picsum.photos/seed/outdoorhike/400/300" },
-      ],
-    },
-    {
-      text: "今の気分、食べ物で表すと？",
-      choices: [
-        { label: "ラーメン", imageUrl: "https://picsum.photos/seed/ramenjapaness/400/300" },
-        { label: "スイーツ", imageUrl: "https://picsum.photos/seed/dessertcake/400/300" },
-        { label: "サラダ", imageUrl: "https://picsum.photos/seed/freshsalad/400/300" },
-        { label: "焼肉", imageUrl: "https://picsum.photos/seed/grillbbq/400/300" },
-      ],
-    },
-    {
-      text: "今夜、したいことは？",
-      choices: [
-        { label: "ゆっくり入浴", imageUrl: "https://picsum.photos/seed/bathrelax/400/300" },
-        { label: "夜ランニング", imageUrl: "https://picsum.photos/seed/runningnight/400/300" },
-        { label: "ゲーム", imageUrl: "https://picsum.photos/seed/gamingsetup/400/300" },
-        { label: "早めに就寝", imageUrl: "https://picsum.photos/seed/sleepcozy/400/300" },
-      ],
-    },
-    {
-      text: "旅行先に選ぶなら？",
-      choices: [
-        { label: "京都", imageUrl: "https://picsum.photos/seed/kyototemple/400/300" },
-        { label: "沖縄", imageUrl: "https://picsum.photos/seed/okinawaocean/400/300" },
-        { label: "北海道", imageUrl: "https://picsum.photos/seed/hokkaidosnow/400/300" },
-        { label: "海外旅行", imageUrl: "https://picsum.photos/seed/worldtravel/400/300" },
-      ],
-    },
-  ];
+  // 開発環境のみ許可
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not allowed" }, { status: 403 });
+  }
 
-  const index = date.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % SETS.length;
-  return SETS[index];
+  const today = getToday();
+  await regenerateDailyQuestion(today);
+  return NextResponse.json({ message: "バックグラウンドで再生成を開始しました" });
 }

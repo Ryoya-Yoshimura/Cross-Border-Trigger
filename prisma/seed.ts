@@ -39,6 +39,8 @@ async function main() {
       where: { date },
       create: {
         date,
+        sourceType: "evergreen",
+        text: "今朝の気分、飲み物で表すと？",
         choices: JSON.stringify([
           { label: "珈琲", imageUrl: "https://picsum.photos/seed/coffeecup/400/300" },
           { label: "紅茶", imageUrl: "https://picsum.photos/seed/greentea/400/300" },

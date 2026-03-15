@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function InvitePage() {
   const { data: session } = useSession();
@@ -91,6 +92,15 @@ export default function InvitePage() {
           className="rounded-2xl p-5"
           style={{ background: "white", border: "1.5px solid var(--border)" }}
         >
+          {/* QRコード */}
+          {inviteUrl && (
+            <div className="flex justify-center mb-4">
+              <div className="p-3 rounded-xl bg-white" style={{ border: "1.5px solid var(--border)" }}>
+                <QRCodeSVG value={inviteUrl} size={180} />
+              </div>
+            </div>
+          )}
+
           {/* 招待コード表示 */}
           <div
             className="rounded-xl p-3 text-center font-mono text-sm font-bold tracking-wider mb-4 break-all"

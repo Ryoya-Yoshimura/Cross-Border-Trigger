@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Choice = { label: string; imageUrl: string };
-type Question = { id: string; date: string; text: string; choices: Choice[] };
+type Choice = { label: string; imageUrl?: string; subtext?: string; emoji?: string; gradient?: string };
+type Question = { id: string; date: string; sourceType?: string; text: string; choices: Choice[] };
 
 export default function DailyPage() {
   const router = useRouter();
@@ -12,21 +12,44 @@ export default function DailyPage() {
   const [answered, setAnswered] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [poppingIndex, setPoppingIndex] = useState<number | null>(null);
 
-  useEffect(() => {
+  const fetchQuestion = () => {
     fetch("/api/questions")
       .then((r) => r.json())
       .then((data) => {
         setQuestion(data.question);
+        setGenerating(data.generating ?? false);
         setAnswered(data.answered);
         if (data.answered !== null) setSelected(data.answered);
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchQuestion();
   }, []);
+
+  // 生成中は5秒ごとにポーリング
+  useEffect(() => {
+    if (!generating) return;
+    const timer = setInterval(() => {
+      fetch("/api/questions")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.question) {
+            setQuestion(data.question);
+            setGenerating(false);
+            setAnswered(data.answered);
+          }
+        });
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [generating]);
 
   const handleSelect = (index: number) => {
     if (answered !== null) return;
@@ -67,6 +90,17 @@ export default function DailyPage() {
   }
 
   if (!question) {
+    if (generating) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <div className="text-4xl animate-pulse">📰</div>
+          <p className="font-semibold">今日のニュースから質問を生成中...</p>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
+            しばらくお待ちください（約1分）
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="text-center py-12" style={{ color: "var(--muted)" }}>
         <p>問題を取得できませんでした</p>
@@ -129,18 +163,27 @@ export default function DailyPage() {
               }}
             >
               {/* 画像エリア */}
-              <div className="w-full h-28 relative overflow-hidden" style={{ background: "var(--border)" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={choice.imageUrl}
-                  alt={choice.label}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
+              <div
+                className="w-full h-28 relative overflow-hidden flex items-center justify-center"
+                style={{ background: choice.gradient ?? "var(--border)" }}
+              >
+                {choice.imageUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={choice.imageUrl}
+                    alt={choice.label}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <span className="text-5xl select-none" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }}>
+                    {choice.emoji ?? "📰"}
+                  </span>
+                )}
                 {isChosen && (
                   <div
                     className="absolute inset-0 flex items-center justify-center"
-                    style={{ background: "rgba(106,159,216,0.35)" }}
+                    style={{ background: "rgba(106,159,216,0.45)" }}
                   >
                     <span className="text-3xl">✅</span>
                   </div>
@@ -148,6 +191,11 @@ export default function DailyPage() {
               </div>
               <div className="px-3 py-2.5">
                 <p className="text-sm font-medium">{choice.label}</p>
+                {choice.subtext && (
+                  <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+                    {choice.subtext}
+                  </p>
+                )}
               </div>
             </button>
           );

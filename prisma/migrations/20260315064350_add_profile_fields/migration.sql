@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "bio" TEXT;
+ALTER TABLE "User" ADD COLUMN "facebookUrl" TEXT;
+ALTER TABLE "User" ADD COLUMN "instagramUrl" TEXT;
+ALTER TABLE "User" ADD COLUMN "lineUrl" TEXT;
+ALTER TABLE "User" ADD COLUMN "threadsUrl" TEXT;
+ALTER TABLE "User" ADD COLUMN "xUrl" TEXT;

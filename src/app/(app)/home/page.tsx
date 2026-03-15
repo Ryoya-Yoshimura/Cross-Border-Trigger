@@ -35,6 +35,12 @@ export default async function HomePage() {
 
   const totalConnections = connections.length;
 
+  // 自分のプロフィール
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { bio: true, xUrl: true, lineUrl: true, instagramUrl: true, facebookUrl: true, threadsUrl: true },
+  });
+
   const unviewedTriggers = connections
     .filter((c) => c.triggers.length > 0)
     .map((c) => ({
@@ -45,6 +51,32 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-6">
+      {/* プロフィールカード */}
+      <div
+        className="rounded-2xl p-4 flex items-center gap-4"
+        style={{ background: "white", border: "1.5px solid var(--border)" }}
+      >
+        <Link href={`/profile/${userId}`} className="flex items-center gap-4 flex-1 min-w-0">
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold text-white shrink-0"
+            style={{ background: "var(--primary)" }}
+          >
+            {session.user.name?.slice(0, 1) ?? "?"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm">{session.user.name}</p>
+            {me?.bio ? (
+              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>{me.bio}</p>
+            ) : (
+              <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>一言を追加する</p>
+            )}
+          </div>
+        </Link>
+        <Link href="/profile/edit" className="text-xs font-medium shrink-0" style={{ color: "var(--accent)" }}>
+          編集
+        </Link>
+      </div>
+
       {/* ウェルカムバナー */}
       <div
         className="rounded-2xl p-5"
