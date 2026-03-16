@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 
 export async function GET(
   _req: NextRequest,
@@ -40,9 +41,11 @@ export async function GET(
   // 既読に更新
   if (!trigger.isViewed) {
     await prisma.trigger.update({ where: { id }, data: { isViewed: true } });
+    revalidatePath("/home");
   }
 
   // 一致の証拠（直近4件の一致記録 + 選んだ選択肢ラベル）
+
   const matchRecords = await prisma.matchRecord.findMany({
     where: { connectionId: trigger.connectionId, matched: true },
     orderBy: { checkedAt: "desc" },

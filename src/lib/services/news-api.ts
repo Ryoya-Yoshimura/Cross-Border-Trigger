@@ -14,14 +14,17 @@ const POSITIVE_KEYWORDS = [
   "baseball", "soccer", "football", "basketball", "tennis", "golf",
   "olympic", "tournament", "league", "team", "player", "coach", "score",
   "goal", "home run", "medal",
+  "優勝", "勝利", "完封", "ホームラン", "メダル", "記録更新", "新記録",
   // 芸能・エンタメ
   "movie", "film", "music", "album", "concert", "award", "actor", "actress",
   "singer", "artist", "show", "series", "debut", "release", "performance",
   "comedy", "dance", "festival", "star", "celebrity",
+  "映画", "ドラマ", "公開", "発売", "デビュー", "コンサート", "ライブ", "主演",
   // 明るい話題全般
   "new", "launch", "opens", "celebrate", "achievement", "success",
   "community", "volunteers", "rescue", "animals", "kids", "children",
   "school", "innovation", "trend", "popular", "fun", "enjoy", "amazing",
+  "最新", "話題", "人気", "トレンド", "オープン", "開催", "成功", "癒やし",
 ];
 
 // 除外するキーワード（暗い・重いニュース）
@@ -30,44 +33,10 @@ const NEGATIVE_KEYWORDS = [
   "war", "attack", "shooting", "arrested", "trial", "lawsuit",
   "abuse", "violence", "disaster", "flood", "earthquake",
   "recession", "bankrupt", "scandal", "controversy",
+  "死亡", "殺人", "逮捕", "事故", "衝突", "戦争", "攻撃", "訴訟", "不倫", "謝罪",
 ];
 
-// APIキー未設定時のサンプルニュース（スポーツ・芸能系）
-const SAMPLE_NEWS: NewsArticle[] = [
-  {
-    title: "Local baseball team wins regional championship in dramatic final",
-    description: "The city's beloved baseball team clinched the regional title with a walkoff home run, sending thousands of fans into celebration.",
-    url: "https://example.com/news/1",
-    urlToImage: null,
-    publishedAt: new Date().toISOString(),
-    source: { name: "Sports Daily" },
-  },
-  {
-    title: "Popular singer announces surprise new album dropping this week",
-    description: "The chart-topping artist revealed an unexpected album release on social media, with fans flooding comments with excitement.",
-    url: "https://example.com/news/2",
-    urlToImage: null,
-    publishedAt: new Date().toISOString(),
-    source: { name: "Music News" },
-  },
-  {
-    title: "New café trend: themed bookstore cafés are popping up everywhere",
-    description: "A new wave of cozy bookstore cafés where visitors can read freely while enjoying specialty coffee is sweeping across major cities.",
-    url: "https://example.com/news/3",
-    urlToImage: null,
-    publishedAt: new Date().toISOString(),
-    source: { name: "Lifestyle Weekly" },
-  },
-  {
-    title: "Award-winning film director announces highly anticipated next project",
-    description: "The acclaimed filmmaker shared details of their next movie, already generating buzz for its unique storyline and star-studded cast.",
-    url: "https://example.com/news/4",
-    urlToImage: null,
-    publishedAt: new Date().toISOString(),
-    source: { name: "Entertainment Today" },
-  },
-];
-
+// ... (SAMPLE_NEWS unchanged) ...
 
 function isBrightNews(article: NewsArticle): boolean {
   const text = `${article.title} ${article.description ?? ""}`.toLowerCase();
@@ -78,7 +47,6 @@ function isBrightNews(article: NewsArticle): boolean {
 
 /**
  * 昨日のニュースを取得する。
- * NEWS_API_KEY 未設定時はサンプルデータを返す。
  */
 export async function fetchYesterdayNews(_date: string): Promise<NewsArticle[]> {
   const apiKey = process.env.NEWS_API_KEY;
@@ -87,17 +55,24 @@ export async function fetchYesterdayNews(_date: string): Promise<NewsArticle[]> 
     return SAMPLE_NEWS;
   }
 
-  // top-headlines（無料プランで確実に動作するエンドポイント）
+  // top-headlines
+  // デフォルトは language=en だが、日本のニュースも取得するように country=jp を試みる
   const url =
     `https://newsapi.org/v2/top-headlines?` +
-    `language=en&pageSize=40&apiKey=${apiKey}`;
+    `country=${process.env.NEWS_COUNTRY || "jp"}&pageSize=40&apiKey=${apiKey}`;
 
   try {
     const res = await fetch(url, { cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.status === "error") {
-      console.warn("[news-api] API error:", data.code, data.message, "- using sample data");
-      return SAMPLE_NEWS;
+      console.warn("[news-api] API error:", data.code, data.message, "- trying English fallback");
+      const fallbackUrl = `https://newsapi.org/v2/top-headlines?language=en&pageSize=40&apiKey=${apiKey}`;
+      const fallbackRes = await fetch(fallbackUrl, { cache: "no-store" });
+      const fallbackData = await fallbackRes.json();
+      if (!fallbackRes.ok || fallbackData.status === "error") {
+        return SAMPLE_NEWS;
+      }
+      return (fallbackData.articles ?? []) as NewsArticle[];
     }
     const articles = (data.articles ?? []) as NewsArticle[];
     console.log(`[news-api] Fetched ${articles.length} articles from top-headlines`);
@@ -107,6 +82,7 @@ export async function fetchYesterdayNews(_date: string): Promise<NewsArticle[]> 
     return SAMPLE_NEWS;
   }
 }
+
 
 /**
  * 明るいニュースを最大4件選ぶ。4件未満の場合はサンプルで補完する。

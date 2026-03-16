@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 
 // 招待コードでつながる
 export async function POST(req: NextRequest) {
@@ -49,6 +50,9 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  revalidatePath("/connections");
+  revalidatePath("/home");
+
   return NextResponse.json({
     connection: {
       id: connection.id,
@@ -56,3 +60,4 @@ export async function POST(req: NextRequest) {
     },
   }, { status: 201 });
 }
+

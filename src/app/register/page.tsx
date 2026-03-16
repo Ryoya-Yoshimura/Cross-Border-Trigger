@@ -24,7 +24,7 @@ function RegisterForm() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, inviteCode }),
       });
 
       const text = await res.text();
@@ -45,10 +45,11 @@ function RegisterForm() {
       if (result?.error) {
         setError("ログインに失敗しました。ログインページからお試しください。");
       } else {
-        // 招待コードがあれば招待ページへ、なければホームへ
-        router.push(inviteCode ? `/invite/${inviteCode}` : "/home");
+        // 招待からの登録でも、API側で接続済みなので直接 /home へ
+        router.push("/home");
       }
     } catch {
+
       setError("通信エラーが発生しました。もう一度お試しください。");
     } finally {
       setLoading(false);

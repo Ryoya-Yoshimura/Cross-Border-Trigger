@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { revalidatePath } from "next/cache";
 
 // 例: "A3K9-Z2MX" 形式の短い招待コード
 async function generateUniqueInviteCode(): Promise<string> {
@@ -18,7 +19,7 @@ async function generateUniqueInviteCode(): Promise<string> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { name, email, password } = body;
+    const { name, email, password, inviteCode } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: "必須項目が不足しています" }, { status: 400 });
@@ -30,16 +31,54 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const inviteCode = await generateUniqueInviteCode();
+    const newInviteCode = await generateUniqueInviteCode();
 
-    const user = await prisma.user.create({
-      data: { name, email, passwordHash, inviteCode },
-      select: { id: true, name: true, email: true, inviteCode: true },
+    // トランザクションでユーザー作成と招待接続を同時実行
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: { name, email, passwordHash, inviteCode: newInviteCode },
+      });
+
+      // 招待コードがあれば接続を作成
+      if (inviteCode) {
+        const inviter = await tx.user.findUnique({ where: { inviteCode } });
+        if (inviter && inviter.id !== newUser.id) {
+          // 重複チェック
+          const existingConn = await tx.connection.findFirst({
+            where: {
+              OR: [
+                { userId1: newUser.id, userId2: inviter.id },
+                { userId1: inviter.id, userId2: newUser.id },
+              ],
+            },
+          });
+
+          if (!existingConn) {
+            await tx.connection.create({
+              data: {
+                userId1: newUser.id,
+                userId2: inviter.id,
+              },
+            });
+            console.log(`[register] Automatic connection created between ${newUser.id} and ${inviter.id}`);
+          }
+        }
+      }
+
+      return newUser;
     });
 
-    return NextResponse.json({ user }, { status: 201 });
+    if (inviteCode) {
+      revalidatePath("/connections");
+      revalidatePath("/home");
+    }
+
+    return NextResponse.json({
+      user: { id: user.id, name: user.name, email: user.email, inviteCode: user.inviteCode },
+    }, { status: 201 });
   } catch (e) {
     console.error("[register]", e);
     return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 });
   }
 }
+

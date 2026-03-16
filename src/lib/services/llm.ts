@@ -15,38 +15,38 @@ type TopicData = { keywords: string[]; label: string; emoji: string; gradient: s
 
 const TOPIC_DATA: TopicData[] = [
   // ── スポーツ ──
-  { keywords: ["hockey", "nhl", "puck", "ice rink"],                                         label: "ホッケーの話",     emoji: "🏒", gradient: "linear-gradient(135deg, #c8eaf8, #a0d8f0)", bucket: "sports" },
-  { keywords: ["baseball", "home run", "pitcher", "batter", "inning", "mlb"],                label: "野球の話",         emoji: "⚾", gradient: "linear-gradient(135deg, #b7e4c7, #95d5b2)", bucket: "sports" },
-  { keywords: ["soccer", "fifa", "striker", "midfielder", "premier league"],                 label: "サッカーの話",     emoji: "⚽", gradient: "linear-gradient(135deg, #d8f3dc, #b7e4c7)", bucket: "sports" },
-  { keywords: ["basketball", "nba", "dunk", "three-pointer"],                                label: "バスケの話",       emoji: "🏀", gradient: "linear-gradient(135deg, #ffd6a5, #ffb347)", bucket: "sports" },
-  { keywords: ["american football", "nfl", "quarterback", "touchdown", "super bowl"],        label: "アメフトの話",     emoji: "🏈", gradient: "linear-gradient(135deg, #ffd6a5, #f4a261)", bucket: "sports" },
-  { keywords: ["tennis", "wimbledon", "grand slam", "racket"],                               label: "テニスの話",       emoji: "🎾", gradient: "linear-gradient(135deg, #fff3b0, #ffe066)", bucket: "sports" },
-  { keywords: ["golf", "pga", "birdie", "eagle", "fairway"],                                 label: "ゴルフの話",       emoji: "⛳", gradient: "linear-gradient(135deg, #c9e4ca, #a7c4a0)", bucket: "sports" },
-  { keywords: ["marathon", "swimming", "gymnastics", "athletics", "track"],                  label: "陸上・競技の話",   emoji: "🏃", gradient: "linear-gradient(135deg, #ffecd2, #fcb69f)", bucket: "sports" },
-  { keywords: ["olympic", "paralympic", "medal", "world cup"],                               label: "国際大会の話",     emoji: "🏅", gradient: "linear-gradient(135deg, #fde8a0, #fbc84a)", bucket: "sports" },
-  { keywords: ["ufc", "mma", "boxing", "wrestling", "combat"],                               label: "格闘技の話",       emoji: "🥊", gradient: "linear-gradient(135deg, #ffd1dc, #ffb3c1)", bucket: "sports" },
+  { keywords: ["hockey", "nhl", "puck", "ice rink", "ホッケー"],                             label: "ホッケーの話",     emoji: "🏒", gradient: "linear-gradient(135deg, #c8eaf8, #a0d8f0)", bucket: "sports" },
+  { keywords: ["baseball", "home run", "pitcher", "batter", "inning", "mlb", "野球", "メジャー"], label: "野球の話",         emoji: "⚾", gradient: "linear-gradient(135deg, #b7e4c7, #95d5b2)", bucket: "sports" },
+  { keywords: ["soccer", "fifa", "striker", "midfielder", "premier league", "サッカー"],      label: "サッカーの話",     emoji: "⚽", gradient: "linear-gradient(135deg, #d8f3dc, #b7e4c7)", bucket: "sports" },
+  { keywords: ["basketball", "nba", "dunk", "three-pointer", "バスケ"],                      label: "バスケの話",       emoji: "🏀", gradient: "linear-gradient(135deg, #ffd6a5, #ffb347)", bucket: "sports" },
+  { keywords: ["american football", "nfl", "quarterback", "touchdown", "super bowl", "アメフト"], label: "アメフトの話",     emoji: "🏈", gradient: "linear-gradient(135deg, #ffd6a5, #f4a261)", bucket: "sports" },
+  { keywords: ["tennis", "wimbledon", "grand slam", "racket", "テニス"],                     label: "テニスの話",       emoji: "🎾", gradient: "linear-gradient(135deg, #fff3b0, #ffe066)", bucket: "sports" },
+  { keywords: ["golf", "pga", "birdie", "eagle", "fairway", "ゴルフ"],                       label: "ゴルフの話",       emoji: "⛳", gradient: "linear-gradient(135deg, #c9e4ca, #a7c4a0)", bucket: "sports" },
+  { keywords: ["marathon", "swimming", "gymnastics", "athletics", "track", "陸上", "水泳"],   label: "陸上・競技の話",   emoji: "🏃", gradient: "linear-gradient(135deg, #ffecd2, #fcb69f)", bucket: "sports" },
+  { keywords: ["olympic", "paralympic", "medal", "world cup", "五輪", "オリンピック"],         label: "国際大会の話",     emoji: "🏅", gradient: "linear-gradient(135deg, #fde8a0, #fbc84a)", bucket: "sports" },
+  { keywords: ["ufc", "mma", "boxing", "wrestling", "combat", "格闘技", "ボクシング"],         label: "格闘技の話",       emoji: "🥊", gradient: "linear-gradient(135deg, #ffd1dc, #ffb3c1)", bucket: "sports" },
   // ── テクノロジー ──
-  { keywords: ["artificial intelligence", "ai", "chatgpt", "llm", "machine learning"],      label: "AIの話",           emoji: "🤖", gradient: "linear-gradient(135deg, #c0f0f4, #96e4ea)", bucket: "tech" },
-  { keywords: ["smartphone", "iphone", "android", "mobile", "app"],                         label: "スマホの話",       emoji: "📱", gradient: "linear-gradient(135deg, #d4c8f0, #b8a8e8)", bucket: "tech" },
-  { keywords: ["space", "nasa", "rocket", "satellite", "astronaut", "astronomy", "spacex"], label: "宇宙の話",         emoji: "🚀", gradient: "linear-gradient(135deg, #c0c8e8, #a8b4d8)", bucket: "tech" },
-  { keywords: ["gaming", "esports", "playstation", "nintendo", "xbox", "video game"],       label: "ゲームの話",       emoji: "🎮", gradient: "linear-gradient(135deg, #d4c8f0, #b8a8e8)", bucket: "tech" },
-  { keywords: ["startup", "tech", "software", "gadget", "electric vehicle", "ev", "robot"], label: "テクノロジーの話", emoji: "💻", gradient: "linear-gradient(135deg, #c0f0f4, #96e4ea)", bucket: "tech" },
+  { keywords: ["artificial intelligence", "ai", "chatgpt", "llm", "machine learning", "人工知能"], label: "AIの話",           emoji: "🤖", gradient: "linear-gradient(135deg, #c0f0f4, #96e4ea)", bucket: "tech" },
+  { keywords: ["smartphone", "iphone", "android", "mobile", "app", "スマホ", "アプリ"],       label: "スマホの話",       emoji: "📱", gradient: "linear-gradient(135deg, #d4c8f0, #b8a8e8)", bucket: "tech" },
+  { keywords: ["space", "nasa", "rocket", "satellite", "astronaut", "astronomy", "spacex", "宇宙", "ロケット"], label: "宇宙の話",         emoji: "🚀", gradient: "linear-gradient(135deg, #c0c8e8, #a8b4d8)", bucket: "tech" },
+  { keywords: ["gaming", "esports", "playstation", "nintendo", "xbox", "video game", "ゲーム"], label: "ゲームの話",       emoji: "🎮", gradient: "linear-gradient(135deg, #d4c8f0, #b8a8e8)", bucket: "tech" },
+  { keywords: ["startup", "tech", "software", "gadget", "electric vehicle", "ev", "robot", "ロボット", "電気自動車"], label: "テクノロジーの話", emoji: "💻", gradient: "linear-gradient(135deg, #c0f0f4, #96e4ea)", bucket: "tech" },
   // ── エンタメ ──
-  { keywords: ["movie", "film", "cinema", "director", "box office"],                        label: "映画の話",         emoji: "🎬", gradient: "linear-gradient(135deg, #ffd1dc, #ffb3c1)", bucket: "entertainment" },
-  { keywords: ["music", "album", "singer", "concert", "band", "rock", "pop star"],          label: "音楽の話",         emoji: "🎵", gradient: "linear-gradient(135deg, #e2d4f0, #c9b8e8)", bucket: "entertainment" },
-  { keywords: ["tv show", "series", "streaming", "netflix", "episode", "drama"],            label: "ドラマの話",       emoji: "📺", gradient: "linear-gradient(135deg, #c8d8f0, #a8c0e8)", bucket: "entertainment" },
-  { keywords: ["actor", "actress", "celebrity", "red carpet", "award"],                     label: "芸能の話",         emoji: "⭐", gradient: "linear-gradient(135deg, #fff0c8, #ffe49a)", bucket: "entertainment" },
-  { keywords: ["comedy", "comedian", "stand-up", "funny"],                                  label: "お笑いの話",       emoji: "😄", gradient: "linear-gradient(135deg, #fff4b0, #ffe880)", bucket: "entertainment" },
-  { keywords: ["dance", "ballet", "choreography"],                                          label: "ダンスの話",       emoji: "💃", gradient: "linear-gradient(135deg, #ffc8d8, #ffaac4)", bucket: "entertainment" },
+  { keywords: ["movie", "film", "cinema", "director", "box office", "映画", "監督"],          label: "映画の話",         emoji: "🎬", gradient: "linear-gradient(135deg, #ffd1dc, #ffb3c1)", bucket: "entertainment" },
+  { keywords: ["music", "album", "singer", "concert", "band", "rock", "pop star", "音楽", "ライブ", "歌手"], label: "音楽の話",         emoji: "🎵", gradient: "linear-gradient(135deg, #e2d4f0, #c9b8e8)", bucket: "entertainment" },
+  { keywords: ["tv show", "series", "streaming", "netflix", "episode", "drama", "ドラマ", "アニメ"], label: "ドラマの話",       emoji: "📺", gradient: "linear-gradient(135deg, #c8d8f0, #a8c0e8)", bucket: "entertainment" },
+  { keywords: ["actor", "actress", "celebrity", "red carpet", "award", "俳優", "女優", "芸能"], label: "芸能の話",         emoji: "⭐", gradient: "linear-gradient(135deg, #fff0c8, #ffe49a)", bucket: "entertainment" },
+  { keywords: ["comedy", "comedian", "stand-up", "funny", "お笑い", "芸人"],                  label: "お笑いの話",       emoji: "😄", gradient: "linear-gradient(135deg, #fff4b0, #ffe880)", bucket: "entertainment" },
+  { keywords: ["dance", "ballet", "choreography", "ダンス"],                                 label: "ダンスの話",       emoji: "💃", gradient: "linear-gradient(135deg, #ffc8d8, #ffaac4)", bucket: "entertainment" },
   // ── ライフスタイル ──
-  { keywords: ["restaurant", "café", "coffee", "cuisine", "recipe", "chef", "food"],        label: "グルメの話",       emoji: "🍽️", gradient: "linear-gradient(135deg, #ffd9b3, #ffbf80)", bucket: "lifestyle" },
-  { keywords: ["travel", "trip", "destination", "hotel", "tourism", "vacation"],            label: "旅行の話",         emoji: "✈️", gradient: "linear-gradient(135deg, #c8eaf8, #a0d8f0)", bucket: "lifestyle" },
-  { keywords: ["fashion", "runway", "designer", "outfit", "style"],                         label: "ファッションの話", emoji: "👗", gradient: "linear-gradient(135deg, #ffd6e7, #ffb3d1)", bucket: "lifestyle" },
-  { keywords: ["dog", "cat", "wildlife", "zoo", "rescue", "puppy", "kitten", "animal"],     label: "動物の話",         emoji: "🐾", gradient: "linear-gradient(135deg, #e8d8c8, #d4c0aa)", bucket: "lifestyle" },
-  { keywords: ["fitness", "workout", "yoga", "gym", "wellness", "health"],                  label: "健康の話",         emoji: "💪", gradient: "linear-gradient(135deg, #b8ead8, #96d8c0)", bucket: "lifestyle" },
-  { keywords: ["book", "novel", "author", "bestseller"],                                    label: "本の話",           emoji: "📚", gradient: "linear-gradient(135deg, #d0dce8, #b8ccd8)", bucket: "lifestyle" },
-  { keywords: ["art", "painting", "exhibition", "museum", "gallery"],                       label: "アートの話",       emoji: "🎨", gradient: "linear-gradient(135deg, #ffd6cc, #f0b8d0)", bucket: "lifestyle" },
-  { keywords: ["nature", "environment", "forest", "ocean", "climate"],                      label: "自然の話",         emoji: "🌿", gradient: "linear-gradient(135deg, #c8e8c0, #aad4a0)", bucket: "lifestyle" },
+  { keywords: ["restaurant", "café", "coffee", "cuisine", "recipe", "chef", "food", "グルメ", "カフェ", "料理"], label: "グルメの話",       emoji: "🍽️", gradient: "linear-gradient(135deg, #ffd9b3, #ffbf80)", bucket: "lifestyle" },
+  { keywords: ["travel", "trip", "destination", "hotel", "tourism", "vacation", "旅行", "ホテル", "観光"], label: "旅行の話",         emoji: "✈️", gradient: "linear-gradient(135deg, #c8eaf8, #a0d8f0)", bucket: "lifestyle" },
+  { keywords: ["fashion", "runway", "designer", "outfit", "style", "ファッション", "モデル"], label: "ファッションの話", emoji: "👗", gradient: "linear-gradient(135deg, #ffd6e7, #ffb3d1)", bucket: "lifestyle" },
+  { keywords: ["dog", "cat", "wildlife", "zoo", "rescue", "puppy", "kitten", "animal", "動物", "犬", "猫"], label: "動物の話",         emoji: "🐾", gradient: "linear-gradient(135deg, #e8d8c8, #d4c0aa)", bucket: "lifestyle" },
+  { keywords: ["fitness", "workout", "yoga", "gym", "wellness", "health", "健康", "ヨガ", "フィットネス"], label: "健康の話",         emoji: "💪", gradient: "linear-gradient(135deg, #b8ead8, #96d8c0)", bucket: "lifestyle" },
+  { keywords: ["book", "novel", "author", "bestseller", "本", "小説", "作家"],               label: "本の話",           emoji: "📚", gradient: "linear-gradient(135deg, #d0dce8, #b8ccd8)", bucket: "lifestyle" },
+  { keywords: ["art", "painting", "exhibition", "museum", "gallery", "アート", "美術館", "展覧会"], label: "アートの話",       emoji: "🎨", gradient: "linear-gradient(135deg, #ffd6cc, #f0b8d0)", bucket: "lifestyle" },
+  { keywords: ["nature", "environment", "forest", "ocean", "climate", "自然", "環境", "海"],   label: "自然の話",         emoji: "🌿", gradient: "linear-gradient(135deg, #c8e8c0, #aad4a0)", bucket: "lifestyle" },
 ];
 
 // ソース名 → バケツ（キーワード検出の補完用）
@@ -58,8 +58,12 @@ const SOURCE_BUCKET_MAP: { sources: string[]; bucket: Bucket }[] = [
 
 const DEFAULT_TOPIC: TopicData = { keywords: [], label: "気になる話題", emoji: "📰", gradient: "linear-gradient(135deg, #e0e8f0, #ccd8e4)", bucket: "lifestyle" };
 
-// 単語境界マッチで誤検出を防ぐ
+// 単語境界マッチで誤検出を防ぐ（日本語は単純な include）
 function matchesKeyword(text: string, keyword: string): boolean {
+  const isJapanese = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf]/.test(keyword);
+  if (isJapanese) {
+    return text.toLowerCase().includes(keyword.toLowerCase());
+  }
   try {
     return new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text);
   } catch {
@@ -119,9 +123,14 @@ ${articles.map((a, i) => `${i + 1}. ${a.title}${a.description ? `\n   ${a.descri
 }
 
 function parseOutput(raw: string): LLMGeneratedQuestion {
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("No JSON in model output");
-  return JSON.parse(jsonMatch[0]) as LLMGeneratedQuestion;
+  try {
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON in model output");
+    return JSON.parse(jsonMatch[0]) as LLMGeneratedQuestion;
+  } catch (e) {
+    console.error("[llm] Failed to parse model output:", raw);
+    throw e;
+  }
 }
 
 function buildChoices(parsed: LLMGeneratedQuestion, articles: NewsArticle[]) {
@@ -140,7 +149,7 @@ function buildChoices(parsed: LLMGeneratedQuestion, articles: NewsArticle[]) {
 // ================================================================
 
 function templateFallback(articles: NewsArticle[]): QuestionSet {
-  const tagged = articles.map((a) => ({ a, topic: detectTopic(a.title, a.source.name) }));
+  const tagged = articles.map((a) => ({ a, topic: detectTopic(a.title + " " + (a.description || ""), a.source.name) }));
 
   // バケツごとにグループ化
   const buckets: Record<Bucket, typeof tagged> = { sports: [], tech: [], entertainment: [], lifestyle: [] };
@@ -148,40 +157,35 @@ function templateFallback(articles: NewsArticle[]): QuestionSet {
     buckets[item.topic.bucket].push(item);
   }
 
-  // 各バケツから1件ずつ選ぶ（ラベルの重複を排除しながら）
+  // 各バケツから1件ずつ選ぶ
   const selected: typeof tagged = [];
-  const usedLabels = new Set<string>();
   const bucketOrder: Bucket[] = ["sports", "entertainment", "tech", "lifestyle"];
 
   for (const bucket of bucketOrder) {
     if (selected.length >= 4) break;
-    const candidates = buckets[bucket].filter((item) => !usedLabels.has(item.topic.label));
-    if (candidates.length > 0) {
-      selected.push(candidates[0]);
-      usedLabels.add(candidates[0].topic.label);
+    if (buckets[bucket].length > 0) {
+      selected.push(buckets[bucket][0]);
     }
   }
 
-  // 4件に満たない場合、残りの記事でラベル重複なしに補完
-  for (const item of tagged) {
-    if (selected.length >= 4) break;
-    if (!usedLabels.has(item.topic.label)) {
-      selected.push(item);
-      usedLabels.add(item.topic.label);
-    }
-  }
-
-  // それでも足りなければラベル重複を許容して補完
+  // 4件に満たない場合、残りの記事で補完
   for (const item of tagged) {
     if (selected.length >= 4) break;
     if (!selected.includes(item)) selected.push(item);
   }
 
   const choices = selected.map(({ a, topic }) => {
-    if (a.urlToImage) {
-      return { label: topic.label, subtext: a.source.name, imageUrl: a.urlToImage };
+    // トピックが汎用的な「気になる話題」の場合は、ソース名をsubtextにしてタイトルの断片をラベルにする試み
+    let label = topic.label;
+    if (topic.label === "気になる話題" && a.title) {
+      // タイトルの最初の20文字程度を使用
+      label = a.title.length > 20 ? a.title.slice(0, 17) + "..." : a.title;
     }
-    return { label: topic.label, subtext: a.source.name, emoji: topic.emoji, gradient: topic.gradient };
+
+    if (a.urlToImage) {
+      return { label, subtext: a.source.name, imageUrl: a.urlToImage };
+    }
+    return { label, subtext: a.source.name, emoji: topic.emoji, gradient: topic.gradient };
   });
 
   return { text: "今日、ちょっと気になるのはどれ？", choices };
@@ -192,16 +196,26 @@ function templateFallback(articles: NewsArticle[]): QuestionSet {
 // ================================================================
 
 async function generateWithGemini(articles: NewsArticle[]): Promise<QuestionSet> {
-  const apiKey = process.env.GEMINI_API_KEY!;
-  const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+
+  const modelName = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
 
   const { GoogleGenerativeAI } = await import("@google/generative-ai");
   const genAI = new GoogleGenerativeAI(apiKey);
-  const geminiModel = genAI.getGenerativeModel({ model });
+
+  // Gemini 2.0以降は JSON モードを明示的に指定可能
+  const geminiModel = genAI.getGenerativeModel({ 
+    model: modelName,
+    generationConfig: {
+      responseMimeType: "application/json",
+    }
+  });
 
   const result = await geminiModel.generateContent(buildPrompt(articles));
-  const text = result.response.text();
-  console.log(`[llm] Gemini response (${model}):`, text.slice(0, 100));
+  const response = await result.response;
+  const text = response.text();
+  console.log(`[llm] Gemini response (${modelName}) length:`, text.length);
 
   const parsed = parseOutput(text);
   return { text: parsed.question, choices: buildChoices(parsed, articles) };

@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { checkAndCreateTrigger } from "@/lib/match";
 import { getOrCreateDailyQuestion, startBackgroundGeneration, isGenerating, regenerateDailyQuestion } from "@/lib/question-generator";
+import { revalidatePath } from "next/cache";
 
 function getToday() {
   return process.env.DEBUG_DATE ?? new Date().toISOString().slice(0, 10);
@@ -105,12 +106,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    revalidatePath("/home");
+    revalidatePath("/connections");
+    revalidatePath("/(app)/connections", "layout");
+    revalidatePath("/profile/" + session.user.id);
+
     return NextResponse.json({ answer });
   } catch (e) {
     console.error("[POST /api/questions]", e);
     return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 });
   }
 }
+
 
 // 開発用: その日の質問を強制再生成する
 // POST /api/questions/regenerate 相当の機能を DELETE で提供

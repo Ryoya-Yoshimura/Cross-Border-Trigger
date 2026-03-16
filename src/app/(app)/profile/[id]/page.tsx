@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 const SNS_META: { key: string; label: string; icon: string }[] = [
   { key: "xUrl",         label: "X",        icon: "𝕏" },
   { key: "lineUrl",      label: "LINE",     icon: "💬" },

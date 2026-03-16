@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions);
@@ -15,5 +16,9 @@ export async function PATCH(req: Request) {
     select: { id: true, bio: true, xUrl: true, lineUrl: true, instagramUrl: true, facebookUrl: true, threadsUrl: true },
   });
 
+  revalidatePath("/profile/" + session.user.id);
+  revalidatePath("/home");
+
   return NextResponse.json(user);
 }
+
